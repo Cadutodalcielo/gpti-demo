@@ -53,7 +53,6 @@ export default function TransactionsTable({
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex gap-4 mb-6">
         <input
           type="text"
@@ -76,7 +75,6 @@ export default function TransactionsTable({
         </select>
       </div>
 
-      {/* Tabla */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -176,7 +174,6 @@ export default function TransactionsTable({
         )}
       </div>
 
-      {/* Modal de edición */}
       {editingExpense && (
         <EditExpenseModal
           expense={editingExpense}

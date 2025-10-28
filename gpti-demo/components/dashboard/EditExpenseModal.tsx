@@ -61,7 +61,6 @@ export default function EditExpenseModal({
         </div>
 
         <div className="space-y-4">
-          {/* Categoría */}
           <div>
             <label className="block text-sm font-medium text-black mb-1">
               Categoría
@@ -79,7 +78,6 @@ export default function EditExpenseModal({
             </select>
           </div>
 
-          {/* Tipo de gasto */}
           <div>
             <label className="block text-sm font-medium text-black mb-1">
               Tipo de Gasto
@@ -94,7 +92,6 @@ export default function EditExpenseModal({
             </select>
           </div>
 
-          {/* Tipo de transacción */}
           <div>
             <label className="block text-sm font-medium text-black mb-1">
               Tipo de Transacción
@@ -109,7 +106,6 @@ export default function EditExpenseModal({
             </select>
           </div>
 
-          {/* Descripción */}
           <div>
             <label className="block text-sm font-medium text-black mb-1">
               Descripción
@@ -150,4 +146,3 @@ export default function EditExpenseModal({
     </div>
   );
 }
-

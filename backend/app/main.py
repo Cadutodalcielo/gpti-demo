@@ -5,15 +5,11 @@ from app.database import engine, Base, get_db
 from app import models, schemas
 from app.services import openai_service
 from typing import List, Optional
-import os
 import uuid
 import shutil
 from pathlib import Path
 
-# Create database tables
 Base.metadata.create_all(bind=engine)
-
-# Create uploads directory
 UPLOAD_DIR = Path("/app/uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -23,10 +19,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +42,6 @@ def health_check():
     return {"status": "healthy"}
 
 
-# Example CRUD endpoints for items
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     db_item = models.Item(**item.dict())
@@ -98,42 +92,31 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     return {"message": "Item deleted successfully"}
 
 
-# Expense endpoints
 @app.post("/expenses/upload")
 async def upload_expense(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload a PDF bank statement (cartola), analyze it with OpenAI, and store ALL transactions.
-    Returns a summary with count and list of created expenses.
-    """
-    # Validate file type
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
-    # Generate unique filename
     file_extension = ".pdf"
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = UPLOAD_DIR / unique_filename
     
-    # Save uploaded file
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
     
-    # Process PDF with OpenAI - returns list of transactions
     try:
         transactions = openai_service.process_expense_pdf(str(file_path))
     except Exception as e:
-        # Clean up file if analysis fails
         if file_path.exists():
             file_path.unlink()
         raise HTTPException(status_code=500, detail=f"Error analyzing PDF: {str(e)}")
     
-    # Create multiple expense records in database
     created_expenses = []
     for transaction in transactions:
         expense_data = {
@@ -155,10 +138,8 @@ async def upload_expense(
         db.add(db_expense)
         created_expenses.append(expense_data)
     
-    # Commit all transactions at once
     db.commit()
     
-    # Return summary
     return {
         "success": True,
         "message": f"{len(created_expenses)} transacciones procesadas",
@@ -175,9 +156,6 @@ def get_expenses(
     category: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """
-    Get list of expenses with optional category filter.
-    """
     query = db.query(models.Expense)
     
     if category:
@@ -189,27 +167,18 @@ def get_expenses(
 
 @app.get("/expenses/categories/list")
 def get_categories():
-    """
-    Get list of available expense categories.
-    """
     return {"categories": openai_service.get_categories()}
 
 
 @app.get("/expenses/stats", response_model=schemas.DashboardStats)
 def get_expenses_stats(
-    month: Optional[str] = None,  # Formato: "2025-09"
+    month: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """
-    Get aggregated statistics for the dashboard.
-    """
-    from sqlalchemy import func, extract
     from collections import defaultdict
-    from datetime import datetime
     
     query = db.query(models.Expense)
     
-    # Filtrar por mes si se proporciona
     if month:
         query = query.filter(models.Expense.date.like(f"{month}%"))
     
@@ -230,23 +199,19 @@ def get_expenses_stats(
             top_merchants=[]
         )
     
-    # Cálculos básicos
     total = sum(e.amount for e in expenses)
     count = len(expenses)
     avg_ticket = total / count if count > 0 else 0
     
-    # Cargos y Abonos
     total_charges = sum(e.amount for e in expenses if getattr(e, 'transaction_type', 'cargo') == 'cargo')
     total_deposits = sum(e.amount for e in expenses if getattr(e, 'transaction_type', 'cargo') == 'abono')
     net_flow = total_deposits - total_charges
     
-    # Fixed vs Variable
     fixed_total = sum(e.amount for e in expenses if e.is_fixed == "fixed")
     variable_total = sum(e.amount for e in expenses if e.is_fixed == "variable")
     fixed_pct = (fixed_total / total * 100) if total > 0 else 0
     variable_pct = (variable_total / total * 100) if total > 0 else 0
     
-    # Breakdown por categoría
     categories = defaultdict(lambda: {"amount": 0, "count": 0})
     for e in expenses:
         categories[e.category]["amount"] += e.amount
@@ -261,11 +226,10 @@ def get_expenses_stats(
         for cat, data in categories.items()
     }
     
-    # Evolución mensual
     monthly_data = defaultdict(float)
     for e in expenses:
         if e.date:
-            month_key = e.date[:7]  # "2025-09"
+            month_key = e.date[:7]
             monthly_data[month_key] += e.amount
     
     monthly_evolution = [
@@ -273,7 +237,6 @@ def get_expenses_stats(
         for month, amount in sorted(monthly_data.items())
     ]
     
-    # Top merchants
     merchants = defaultdict(lambda: {"amount": 0, "count": 0})
     for e in expenses:
         merchant = e.merchant_normalized or e.vendor or "Desconocido"
@@ -311,9 +274,6 @@ def get_expenses_stats(
 
 @app.get("/expenses/{expense_id}", response_model=schemas.Expense)
 def get_expense(expense_id: int, db: Session = Depends(get_db)):
-    """
-    Get a specific expense by ID.
-    """
     expense = db.query(models.Expense).filter(models.Expense.id == expense_id).first()
     if expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -326,14 +286,10 @@ def update_expense(
     expense_update: schemas.ExpenseUpdate,
     db: Session = Depends(get_db)
 ):
-    """
-    Update an expense record.
-    """
     db_expense = db.query(models.Expense).filter(models.Expense.id == expense_id).first()
     if db_expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")
     
-    # Update only provided fields
     update_data = expense_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_expense, key, value)
@@ -345,14 +301,10 @@ def update_expense(
 
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int, db: Session = Depends(get_db)):
-    """
-    Delete an expense and its associated PDF file.
-    """
     db_expense = db.query(models.Expense).filter(models.Expense.id == expense_id).first()
     if db_expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")
     
-    # Delete PDF file
     try:
         pdf_path = Path(db_expense.pdf_path)
         if pdf_path.exists():
@@ -360,7 +312,6 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error deleting PDF file: {str(e)}")
     
-    # Delete database record
     db.delete(db_expense)
     db.commit()
     return {"message": "Expense deleted successfully"}

@@ -17,7 +17,6 @@ export default function TemporalChart({ data }: TemporalChartProps) {
     <div>
       {data.length > 0 ? (
         <div className="space-y-4">
-          {/* Gráfico de barras simple */}
           <div className="flex items-end justify-around h-64 border-b border-gray-200">
             {data.map((item, index) => {
               const heightPercentage = (item.amount / maxAmount) * 100;
@@ -43,7 +42,6 @@ export default function TemporalChart({ data }: TemporalChartProps) {
             })}
           </div>
 
-          {/* Resumen */}
           <div className="grid grid-cols-3 gap-4 pt-4 border-t">
             <div>
               <div className="text-xs text-black">Promedio</div>

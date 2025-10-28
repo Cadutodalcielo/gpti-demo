@@ -1,10 +1,3 @@
-/**
- * Utilidades compartidas para formateo de datos
- */
-
-/**
- * Formatea un número como moneda chilena (CLP)
- */
 export function formatCurrency(amount: number | string): string {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
@@ -16,9 +9,6 @@ export function formatCurrency(amount: number | string): string {
   }).format(numericAmount);
 }
 
-/**
- * Formatea una fecha en formato chileno
- */
 export function formatDate(dateString: string | null): string {
   if (!dateString) return 'N/A';
   
@@ -33,9 +23,6 @@ export function formatDate(dateString: string | null): string {
   }
 }
 
-/**
- * Formatea un mes YYYY-MM a formato legible
- */
 export function formatMonth(monthStr: string): string {
   const [year, month] = monthStr.split('-');
   const months = [
@@ -45,9 +32,6 @@ export function formatMonth(monthStr: string): string {
   return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
 }
 
-/**
- * Tipos de insights
- */
 export interface Insight {
   type: 'alert' | 'recommendation' | 'summary';
   title: string;
@@ -55,13 +39,9 @@ export interface Insight {
   value?: string;
 }
 
-/**
- * Genera insights basados en las estadísticas del dashboard
- */
 export function generateInsights(stats: any, expenses: any[]): Insight[] {
   const insights: Insight[] = [];
 
-  // ALERTAS (Rojo)
   if (stats.variable_percentage > 70) {
     insights.push({
       type: 'alert',
@@ -88,7 +68,6 @@ export function generateInsights(stats: any, expenses: any[]): Insight[] {
     });
   }
 
-  // RECOMENDACIONES (Amarillo)
   if (stats.average_ticket > 50000) {
     insights.push({
       type: 'recommendation',
@@ -108,7 +87,6 @@ export function generateInsights(stats: any, expenses: any[]): Insight[] {
     });
   }
 
-  // RESUMEN GENERAL (Azul)
   const dailyAverage = stats.total_expenses / 30;
   insights.push({
     type: 'summary',
@@ -137,4 +115,3 @@ export function generateInsights(stats: any, expenses: any[]): Insight[] {
 
   return insights;
 }
-

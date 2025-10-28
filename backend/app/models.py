@@ -20,16 +20,15 @@ class Expense(Base):
     id = Column(Integer, primary_key=True, index=True)
     category = Column(String, index=True, nullable=False)
     amount = Column(Float, nullable=False)
-    date = Column(String, nullable=True)  # Almacenado como string ISO
+    date = Column(String, nullable=True)
     vendor = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     pdf_filename = Column(String, nullable=False)
     pdf_path = Column(String, nullable=False)
     analysis_method = Column(String, nullable=True)
-    # Nuevos campos para dashboard avanzado
-    is_fixed = Column(String, default="variable")  # "fixed" o "variable"
-    channel = Column(String, nullable=True)  # Ej: "online", "pos", "atm"
-    merchant_normalized = Column(String, nullable=True)  # Merchant normalizado
-    transaction_type = Column(String, default="cargo")  # "cargo" o "abono"
-    created_at = Column(String, nullable=True)  # ISO format string
-    updated_at = Column(String, nullable=True)  # ISO format string
+    is_fixed = Column(String, default="variable")
+    channel = Column(String, nullable=True)
+    merchant_normalized = Column(String, nullable=True)
+    transaction_type = Column(String, default="cargo")
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)

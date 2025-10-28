@@ -19,7 +19,6 @@ export default function FixedVariablePanel({ stats }: FixedVariablePanelProps) {
       <h2 className="text-xl font-semibold mb-6 text-black">Fijo vs Variable</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Gasto Fijo */}
         <div className="border-l-4 border-blue-500 pl-4">
           <div className="text-sm font-medium text-black mb-1">
             GASTOS FIJOS
@@ -35,7 +34,6 @@ export default function FixedVariablePanel({ stats }: FixedVariablePanelProps) {
           </div>
         </div>
 
-        {/* Gasto Variable */}
         <div className="border-l-4 border-green-500 pl-4">
           <div className="text-sm font-medium text-black mb-1">
             GASTOS VARIABLES
@@ -52,7 +50,6 @@ export default function FixedVariablePanel({ stats }: FixedVariablePanelProps) {
         </div>
       </div>
 
-      {/* Barra visual */}
       <div className="mt-6">
         <div className="flex h-8 rounded-lg overflow-hidden">
           <div

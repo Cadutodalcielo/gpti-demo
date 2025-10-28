@@ -158,7 +158,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Filter and Summary */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-black">
@@ -186,7 +185,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
         </div>
       </div>
 
-      {/* Expenses Table */}
       {expenses.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-black">
@@ -224,7 +222,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
               {expenses.map((expense) => (
                 <tr key={expense.id} className="hover:bg-gray-50">
                   {editingId === expense.id ? (
-                    // Edit Mode
                     <>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
@@ -301,7 +298,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                       </td>
                     </>
                   ) : (
-                    // View Mode
                     <>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">

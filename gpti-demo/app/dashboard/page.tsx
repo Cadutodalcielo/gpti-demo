@@ -20,7 +20,6 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
-  // Cargar datos
   useEffect(() => {
     loadData();
   }, [selectedMonth]);
@@ -38,11 +37,10 @@ export default function DashboardPage() {
       setStats(statsData);
       setExpenses(expensesData);
       
-      // Extraer meses únicos de los gastos
       const months = new Set<string>();
       expensesData.forEach(expense => {
         if (expense.date) {
-          const month = expense.date.substring(0, 7); // YYYY-MM
+          const month = expense.date.substring(0, 7);
           months.add(month);
         }
       });
@@ -99,7 +97,6 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
@@ -112,7 +109,6 @@ export default function DashboardPage() {
               </p>
             </div>
             
-            {/* Selector de período */}
             <div className="flex items-center gap-4">
               <div>
                 <label className="block text-sm font-medium text-black mb-1">
@@ -144,21 +140,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* KPIs */}
         {stats && <KPICards stats={stats} />}
 
-        {/* Insights Panel */}
         {stats && (
           <div className="mt-6">
             <InsightsPanel stats={stats} expenses={expenses} />
           </div>
         )}
 
-        {/* Gráficos principales */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Gasto por categoría */}
           {stats && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-black">Gasto por Categoría</h2>
@@ -166,7 +157,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Evolución temporal */}
           {stats && stats.monthly_evolution && stats.monthly_evolution.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-black">Evolución Temporal</h2>
@@ -175,14 +165,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Fijo vs Variable */}
         {stats && (
           <div className="mt-6">
             <FixedVariablePanel stats={stats} />
           </div>
         )}
 
-        {/* Tabla de transacciones */}
         <div className="mt-6">
           <TransactionsTable 
             expenses={expenses} 

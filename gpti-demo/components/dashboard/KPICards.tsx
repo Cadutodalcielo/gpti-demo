@@ -11,7 +11,6 @@ export default function KPICards({ stats }: KPICardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-      {/* Total Cargos */}
       <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
         <div className="text-sm font-medium text-black mb-1">
           TOTAL CARGOS
@@ -24,7 +23,6 @@ export default function KPICards({ stats }: KPICardsProps) {
         </div>
       </div>
 
-      {/* Total Abonos */}
       <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
         <div className="text-sm font-medium text-black mb-1">
           TOTAL ABONOS
@@ -37,7 +35,6 @@ export default function KPICards({ stats }: KPICardsProps) {
         </div>
       </div>
 
-      {/* Flujo Neto */}
       <div className={`bg-white rounded-lg shadow p-6 border-l-4 ${
         stats.net_flow >= 0 ? 'border-blue-500' : 'border-orange-500'
       }`}>
@@ -54,7 +51,6 @@ export default function KPICards({ stats }: KPICardsProps) {
         </div>
       </div>
 
-      {/* Transacciones */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="text-sm font-medium text-black mb-1">
           TRANSACCIONES
@@ -67,7 +63,6 @@ export default function KPICards({ stats }: KPICardsProps) {
         </div>
       </div>
 
-      {/* Ticket Medio */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="text-sm font-medium text-black mb-1">
           TICKET MEDIO
