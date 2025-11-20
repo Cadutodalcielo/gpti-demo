@@ -94,6 +94,9 @@ export default function TransactionsTable({
                 <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
                   Descripción
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
+                  Análisis IA
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-black uppercase">
                   Monto
                 </th>
@@ -134,6 +137,14 @@ export default function TransactionsTable({
                   </td>
                   <td className="px-4 py-3 text-sm text-black max-w-xs truncate">
                     {expense.description || "Sin descripción"}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-black max-w-xs">
+                    <p className="font-semibold">
+                      {expense.charge_archetype || "Sin análisis"}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                      {expense.charge_origin || "La IA no entregó más contexto."}
+                    </p>
                   </td>
                   <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-semibold ${
                     isCargo ? "text-red-600" : "text-green-600"

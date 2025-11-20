@@ -11,6 +11,7 @@ import TemporalChart from "@/components/dashboard/TemporalChart";
 import FixedVariablePanel from "@/components/dashboard/FixedVariablePanel";
 import TransactionsTable from "@/components/dashboard/TransactionsTable";
 import InsightsPanel from "@/components/dashboard/InsightsPanel";
+import ChargeAnalysisPanel from "@/components/dashboard/ChargeAnalysisPanel";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -146,6 +147,12 @@ export default function DashboardPage() {
         {stats && (
           <div className="mt-6">
             <InsightsPanel stats={stats} expenses={expenses} />
+          </div>
+        )}
+
+        {expenses.length > 0 && (
+          <div className="mt-6">
+            <ChargeAnalysisPanel expenses={expenses} />
           </div>
         )}
 

@@ -31,6 +31,8 @@ class ExpenseBase(BaseModel):
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
     transaction_type: str = "cargo"
+    charge_archetype: Optional[str] = None
+    charge_origin: Optional[str] = None
 
 
 class ExpenseCreate(ExpenseBase):
@@ -49,6 +51,8 @@ class ExpenseUpdate(BaseModel):
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
     transaction_type: Optional[str] = None
+    charge_archetype: Optional[str] = None
+    charge_origin: Optional[str] = None
 
 
 class Expense(ExpenseBase):

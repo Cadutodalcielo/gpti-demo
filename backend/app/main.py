@@ -129,6 +129,8 @@ async def upload_expense(
             "channel": transaction.get("channel"),
             "merchant_normalized": transaction.get("merchant_normalized"),
             "transaction_type": transaction.get("transaction_type", "cargo"),
+            "charge_archetype": transaction.get("charge_archetype"),
+            "charge_origin": transaction.get("charge_origin"),
             "pdf_filename": file.filename,
             "pdf_path": str(file_path),
             "analysis_method": transaction.get("analysis_method")

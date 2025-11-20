@@ -75,6 +75,9 @@ Clasifica cada transacción según:
 - Tipo de transacción (MUY IMPORTANTE):
   * "cargo": Pagos, compras, retiros, cargos, gastos, traspasos salientes (aparece en columna CARGO o con signo negativo)
   * "abono": Depósitos, transferencias recibidas, devoluciones, ingresos (aparece en columna ABONO/DEPOSITO o con signo positivo)
+- Agrega análisis de IA para el origen del movimiento:
+  * "charge_archetype": describe en 2-4 palabras el tipo de transacción (ej: "Comida rápida", "Transferencia familiar", "Suscripción streaming").
+  * "charge_origin": explica en máximo 20 palabras quién/qué originó el cargo o abono y el motivo.
 
 Responde con un ARRAY JSON con TODAS las transacciones:
 [
@@ -87,7 +90,9 @@ Responde con un ARRAY JSON con TODAS las transacciones:
     "is_fixed": "fixed o variable",
     "channel": "online|pos|atm o null",
     "merchant_normalized": "nombre limpio sin sufijos",
-    "transaction_type": "cargo o abono"
+    "transaction_type": "cargo o abono",
+    "charge_archetype": "tipo general detectado",
+    "charge_origin": "explicación corta"
   }},
   ...más transacciones...
 ]
@@ -135,8 +140,14 @@ Si no hay transacciones: responde con array vacío []"""
                     datetime.strptime(result["date"], "%Y-%m-%d")
                 except:
                     result["date"] = None
-            
-            result["analysis_method"] = "gpt-5-mini"
+
+            if not result.get("charge_archetype"):
+                result["charge_archetype"] = "Análisis pendiente"
+
+            if not result.get("charge_origin"):
+                result["charge_origin"] = "La IA no pudo identificar el origen exacto."
+
+            result["analysis_method"] = "gpt-5-mini-charge-intel"
             validated_transactions.append(result)
         
         return validated_transactions if validated_transactions else [_default_response("No se encontraron transacciones")]
@@ -156,6 +167,8 @@ def _default_response(error_msg: str) -> Dict:
         "is_fixed": "variable",
         "channel": None,
         "merchant_normalized": None,
+        "charge_archetype": "Análisis pendiente",
+        "charge_origin": error_msg,
         "analysis_method": "failed"
     }
 
