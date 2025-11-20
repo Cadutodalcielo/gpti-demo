@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.database import engine, Base, get_db
 from app import models, schemas
-from app.services import openai_service
+from app.services import openai_service, suspicious_detector
 from typing import List, Optional
 import uuid
 import shutil
@@ -112,6 +112,7 @@ async def upload_expense(
     
     try:
         transactions = openai_service.process_expense_pdf(str(file_path))
+        transactions = suspicious_detector.annotate_transactions(transactions, db)
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
@@ -131,6 +132,8 @@ async def upload_expense(
             "transaction_type": transaction.get("transaction_type", "cargo"),
             "charge_archetype": transaction.get("charge_archetype"),
             "charge_origin": transaction.get("charge_origin"),
+            "is_suspicious": transaction.get("is_suspicious", False),
+            "suspicious_reason": transaction.get("suspicious_reason"),
             "pdf_filename": file.filename,
             "pdf_path": str(file_path),
             "analysis_method": transaction.get("analysis_method")

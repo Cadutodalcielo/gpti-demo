@@ -14,6 +14,8 @@ export interface Expense {
   transaction_type: 'cargo' | 'abono';
   charge_archetype: string | null;
   charge_origin: string | null;
+  is_suspicious: boolean;
+  suspicious_reason: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -36,6 +38,8 @@ export interface ExpenseUpdate {
   transaction_type?: 'cargo' | 'abono';
   charge_archetype?: string | null;
   charge_origin?: string | null;
+  is_suspicious?: boolean;
+  suspicious_reason?: string | null;
 }
 
 export const EXPENSE_CATEGORIES = [

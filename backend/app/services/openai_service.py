@@ -147,6 +147,12 @@ Si no hay transacciones: responde con array vacío []"""
             if not result.get("charge_origin"):
                 result["charge_origin"] = "La IA no pudo identificar el origen exacto."
 
+            if "is_suspicious" not in result:
+                result["is_suspicious"] = False
+
+            if "suspicious_reason" not in result:
+                result["suspicious_reason"] = None
+
             result["analysis_method"] = "gpt-5-mini-charge-intel"
             validated_transactions.append(result)
         
@@ -169,6 +175,8 @@ def _default_response(error_msg: str) -> Dict:
         "merchant_normalized": None,
         "charge_archetype": "Análisis pendiente",
         "charge_origin": error_msg,
+        "is_suspicious": False,
+        "suspicious_reason": None,
         "analysis_method": "failed"
     }
 

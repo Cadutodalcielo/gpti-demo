@@ -13,8 +13,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def _ensure_analysis_columns():
-    """Ensure additional AI analysis columns exist even on old databases."""
+def _ensure_schema_updates():
+    """Ensure additional AI-driven columns exist in legacy databases."""
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -28,9 +28,21 @@ def _ensure_analysis_columns():
                 "ADD COLUMN IF NOT EXISTS charge_origin TEXT"
             )
         )
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS expenses "
+                "ADD COLUMN IF NOT EXISTS is_suspicious BOOLEAN DEFAULT FALSE"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS expenses "
+                "ADD COLUMN IF NOT EXISTS suspicious_reason TEXT"
+            )
+        )
 
 
-_ensure_analysis_columns()
+_ensure_schema_updates()
 
 
 def get_db():

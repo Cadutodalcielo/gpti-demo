@@ -21,6 +21,10 @@ export default function EditExpenseModal({
     expense.transaction_type || "cargo"
   );
   const [description, setDescription] = useState(expense.description || "");
+  const [isSuspicious, setIsSuspicious] = useState(expense.is_suspicious || false);
+  const [suspiciousReason, setSuspiciousReason] = useState(
+    expense.suspicious_reason || ""
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +38,8 @@ export default function EditExpenseModal({
         is_fixed: isFixed,
         transaction_type: transactionType,
         description: description || null,
+        is_suspicious: isSuspicious,
+        suspicious_reason: suspiciousReason ? suspiciousReason : null,
       });
 
       onSave();
@@ -117,6 +123,32 @@ export default function EditExpenseModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Descripción opcional"
             />
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-black mb-2">
+              Alerta de movimiento sospechoso
+            </label>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                id="suspicious-toggle"
+                type="checkbox"
+                checked={isSuspicious}
+                onChange={(e) => setIsSuspicious(e.target.checked)}
+                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+              />
+              <label htmlFor="suspicious-toggle" className="text-sm text-black">
+                Marcar como sospechoso
+              </label>
+            </div>
+            {isSuspicious && (
+              <textarea
+                value={suspiciousReason}
+                onChange={(e) => setSuspiciousReason(e.target.value)}
+                className="w-full px-3 py-2 border border-red-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+                placeholder="Explica por qué la transacción es sospechosa (opcional)"
+              />
+            )}
           </div>
 
           {error && (

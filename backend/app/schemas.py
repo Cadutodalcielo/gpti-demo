@@ -33,6 +33,8 @@ class ExpenseBase(BaseModel):
     transaction_type: str = "cargo"
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
+    is_suspicious: bool = False
+    suspicious_reason: Optional[str] = None
 
 
 class ExpenseCreate(ExpenseBase):
@@ -53,6 +55,8 @@ class ExpenseUpdate(BaseModel):
     transaction_type: Optional[str] = None
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
+    is_suspicious: Optional[bool] = None
+    suspicious_reason: Optional[str] = None
 
 
 class Expense(ExpenseBase):

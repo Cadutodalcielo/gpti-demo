@@ -222,8 +222,15 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {expenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-gray-50">
+              {expenses.map((expense) => {
+                const isSuspicious = expense.is_suspicious;
+                return (
+                <tr
+                  key={expense.id}
+                  className={`hover:bg-gray-50 ${
+                    isSuspicious ? "bg-red-50/60" : ""
+                  }`}
+                >
                   {editingId === expense.id ? (
                     <>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -293,6 +300,16 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                           <p className="text-xs text-gray-500">
                             {expense.charge_origin || "La IA no entregó detalles."}
                           </p>
+                          {expense.is_suspicious && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                Alerta IA
+                              </span>
+                              <p className="text-xs text-red-600 mt-1">
+                                {expense.suspicious_reason || "Movimiento marcado como sospechoso."}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -337,6 +354,16 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                           <p className="text-xs text-gray-600 mt-1">
                             {expense.charge_origin || "Aún no hay explicación disponible."}
                           </p>
+                          {expense.is_suspicious && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                Alerta IA
+                              </span>
+                              <p className="text-xs text-red-600 mt-1">
+                                {expense.suspicious_reason || "Movimiento marcado como sospechoso."}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -356,7 +383,7 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                     </>
                   )}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
