@@ -31,6 +31,10 @@ class ExpenseBase(BaseModel):
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
     transaction_type: str = "cargo"
+    charge_archetype: Optional[str] = None
+    charge_origin: Optional[str] = None
+    is_suspicious: bool = False
+    suspicious_reason: Optional[str] = None
 
 
 class ExpenseCreate(ExpenseBase):
@@ -49,6 +53,10 @@ class ExpenseUpdate(BaseModel):
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
     transaction_type: Optional[str] = None
+    charge_archetype: Optional[str] = None
+    charge_origin: Optional[str] = None
+    is_suspicious: Optional[bool] = None
+    suspicious_reason: Optional[str] = None
 
 
 class Expense(ExpenseBase):
@@ -93,4 +101,5 @@ class DashboardStats(BaseModel):
     net_flow: float
     categories_breakdown: dict
     monthly_evolution: list
+    balance_evolution: list
     top_merchants: list

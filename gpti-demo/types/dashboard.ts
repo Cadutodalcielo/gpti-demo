@@ -16,7 +16,12 @@ export interface DashboardStats {
   };
   monthly_evolution: Array<{
     month: string;
-    amount: number;
+    charges: number;
+    deposits: number;
+  }>;
+  balance_evolution: Array<{
+    date: string;
+    balance: number;
   }>;
   top_merchants: Array<{
     merchant: string;

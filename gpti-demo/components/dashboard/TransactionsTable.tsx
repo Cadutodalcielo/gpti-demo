@@ -32,7 +32,8 @@ export default function TransactionsTable({
 
   const filteredExpenses = expenses.filter((expense) => {
     const matchesSearch =
-      expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.charge_archetype?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.charge_origin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.category.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -56,7 +57,7 @@ export default function TransactionsTable({
       <div className="flex gap-4 mb-6">
         <input
           type="text"
-          placeholder="Buscar por descripción, vendedor o categoría..."
+          placeholder="Buscar por análisis IA, vendedor o categoría..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
@@ -108,8 +109,9 @@ export default function TransactionsTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredExpenses.map((expense) => {
               const isCargo = expense.transaction_type === 'cargo';
+              const rowClass = expense.is_suspicious ? "bg-red-50/70" : "";
               return (
-                <tr key={expense.id} className="hover:bg-gray-50">
+                <tr key={expense.id} className={`hover:bg-gray-50 ${rowClass}`}>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-black">
                     {formatDate(expense.date)}
                   </td>
@@ -132,8 +134,23 @@ export default function TransactionsTable({
                   <td className="px-4 py-3 text-sm text-black">
                     {expense.vendor || "N/A"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-black max-w-xs truncate">
-                    {expense.description || "Sin descripción"}
+                  <td className="px-4 py-3 text-sm text-black max-w-xs">
+                    <p className="font-semibold">
+                      {expense.charge_archetype || "Sin análisis"}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                      {expense.charge_origin || "La IA no entregó más contexto."}
+                    </p>
+                    {expense.is_suspicious && (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                          Alerta sospechosa
+                        </span>
+                        <p className="text-xs text-red-600 mt-1 line-clamp-3">
+                          {expense.suspicious_reason || "Movimiento fuera de patrón."}
+                        </p>
+                      </div>
+                    )}
                   </td>
                   <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-semibold ${
                     isCargo ? "text-red-600" : "text-green-600"

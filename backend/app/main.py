@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.database import engine, Base, get_db
 from app import models, schemas
-from app.services import openai_service
+from app.services import openai_service, suspicious_detector
 from typing import List, Optional
 import uuid
 import shutil
@@ -112,6 +112,7 @@ async def upload_expense(
     
     try:
         transactions = openai_service.process_expense_pdf(str(file_path))
+        transactions = suspicious_detector.annotate_transactions(transactions, db)
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
@@ -129,6 +130,10 @@ async def upload_expense(
             "channel": transaction.get("channel"),
             "merchant_normalized": transaction.get("merchant_normalized"),
             "transaction_type": transaction.get("transaction_type", "cargo"),
+            "charge_archetype": transaction.get("charge_archetype"),
+            "charge_origin": transaction.get("charge_origin"),
+            "is_suspicious": transaction.get("is_suspicious", False),
+            "suspicious_reason": transaction.get("suspicious_reason"),
             "pdf_filename": file.filename,
             "pdf_path": str(file_path),
             "analysis_method": transaction.get("analysis_method")
@@ -166,8 +171,12 @@ def get_expenses(
 
 
 @app.get("/expenses/categories/list")
-def get_categories():
-    return {"categories": openai_service.get_categories()}
+def get_categories(db: Session = Depends(get_db)):
+    """Obtiene las categorías únicas existentes en la base de datos"""
+    categories = db.query(models.Expense.category).distinct().all()
+    # Extraer las categorías de las tuplas y filtrar None/vacías
+    category_list = sorted([cat[0] for cat in categories if cat[0] and cat[0].strip()])
+    return {"categories": category_list}
 
 
 @app.get("/expenses/stats", response_model=schemas.DashboardStats)
@@ -196,6 +205,7 @@ def get_expenses_stats(
             net_flow=0.0,
             categories_breakdown={},
             monthly_evolution=[],
+            balance_evolution=[],
             top_merchants=[]
         )
     
@@ -226,16 +236,44 @@ def get_expenses_stats(
         for cat, data in categories.items()
     }
     
-    monthly_data = defaultdict(float)
+    monthly_charges = defaultdict(float)
+    monthly_deposits = defaultdict(float)
+    daily_balance = []
+    
     for e in expenses:
         if e.date:
             month_key = e.date[:7]
-            monthly_data[month_key] += e.amount
+            tx_type = getattr(e, 'transaction_type', 'cargo')
+            if tx_type == 'cargo':
+                monthly_charges[month_key] += e.amount
+            else:
+                monthly_deposits[month_key] += e.amount
     
-    monthly_evolution = [
-        {"month": month, "amount": amount}
-        for month, amount in sorted(monthly_data.items())
-    ]
+    monthly_evolution = []
+    all_months = sorted(set(list(monthly_charges.keys()) + list(monthly_deposits.keys())))
+    for month in all_months:
+        monthly_evolution.append({
+            "month": month,
+            "charges": monthly_charges.get(month, 0.0),
+            "deposits": monthly_deposits.get(month, 0.0)
+        })
+    
+    # Calcular evolución del saldo (acumulado)
+    sorted_expenses = sorted([e for e in expenses if e.date], key=lambda x: x.date)
+    current_balance = 0.0
+    balance_evolution = []
+    
+    for e in sorted_expenses:
+        tx_type = getattr(e, 'transaction_type', 'cargo')
+        if tx_type == 'abono':
+            current_balance += e.amount
+        else:
+            current_balance -= e.amount
+        
+        balance_evolution.append({
+            "date": e.date,
+            "balance": current_balance
+        })
     
     merchants = defaultdict(lambda: {"amount": 0, "count": 0})
     for e in expenses:
@@ -268,6 +306,7 @@ def get_expenses_stats(
         net_flow=net_flow,
         categories_breakdown=categories_breakdown,
         monthly_evolution=monthly_evolution,
+        balance_evolution=balance_evolution,
         top_merchants=top_merchants
     )
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Expense, EXPENSE_CATEGORIES } from "@/types/expense";
-import { getExpenses, updateExpense, deleteExpense } from "@/lib/api";
+import { Expense } from "@/types/expense";
+import { getExpenses, updateExpense, deleteExpense, getCategories } from "@/lib/api";
 
 interface ExpensesListProps {
   refreshTrigger: number;
@@ -14,10 +14,26 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     loadExpenses();
   }, [refreshTrigger, selectedCategory]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await getCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      // Si falla, usar categorías vacías
+      setCategories([]);
+    }
+  };
 
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +72,8 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
         description: editForm.description || null,
       });
       await loadExpenses();
+      // Recargar categorías por si se agregó una nueva
+      await loadCategories();
       setEditingId(null);
       setEditForm({});
     } catch (error) {
@@ -169,7 +187,7 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todas</option>
-            {EXPENSE_CATEGORIES.map((category) => (
+            {categories.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
@@ -219,24 +237,33 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {expenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-gray-50">
+              {expenses.map((expense) => {
+                const isSuspicious = expense.is_suspicious;
+                return (
+                <tr
+                  key={expense.id}
+                  className={`hover:bg-gray-50 ${
+                    isSuspicious ? "bg-red-50/60" : ""
+                  }`}
+                >
                   {editingId === expense.id ? (
                     <>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <select
+                        <input
+                          type="text"
+                          list={`category-list-${expense.id}`}
                           value={editForm.category || expense.category}
                           onChange={(e) =>
                             setEditForm({ ...editForm, category: e.target.value })
                           }
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {EXPENSE_CATEGORIES.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
+                          placeholder="Categoría"
+                        />
+                        <datalist id={`category-list-${expense.id}`}>
+                          {categories.map((cat) => (
+                            <option key={cat} value={cat} />
                           ))}
-                        </select>
+                        </datalist>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
@@ -269,18 +296,25 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
-                      <td className="px-6 py-4">
-                        <input
-                          type="text"
-                          value={editForm.description || expense.description || ""}
-                          onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              description: e.target.value,
-                            })
-                          }
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                      <td className="px-6 py-4 text-sm text-black">
+                        <div>
+                          <p className="font-medium">
+                            {expense.charge_archetype || "Sin análisis"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {expense.charge_origin || "La IA no entregó detalles."}
+                          </p>
+                          {expense.is_suspicious && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                Alerta IA
+                              </span>
+                              <p className="text-xs text-red-600 mt-1">
+                                {expense.suspicious_reason || "Movimiento marcado como sospechoso."}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
@@ -314,7 +348,24 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                         {expense.vendor || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-sm text-black">
-                        {expense.description || "N/A"}
+                        <div>
+                          <p className="font-semibold text-black">
+                            {expense.charge_archetype || "Sin análisis"}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {expense.charge_origin || "Aún no hay explicación disponible."}
+                          </p>
+                          {expense.is_suspicious && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                Alerta IA
+                              </span>
+                              <p className="text-xs text-red-600 mt-1">
+                                {expense.suspicious_reason || "Movimiento marcado como sospechoso."}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
@@ -333,7 +384,7 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                     </>
                   )}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>

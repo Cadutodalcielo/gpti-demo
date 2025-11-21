@@ -10,20 +10,6 @@ from io import BytesIO
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-EXPENSE_CATEGORIES = [
-    "Salud",
-    "Comida",
-    "Transporte",
-    "Vivienda",
-    "Entretenimiento",
-    "Servicios",
-    "Educación",
-    "Vestimenta",
-    "Personal",
-    "Otros"
-]
-
-
 def process_expense_pdf(pdf_path: str) -> List[Dict]:
     try:
         images = convert_from_path(pdf_path, first_page=1, last_page=5)
@@ -47,11 +33,7 @@ def process_expense_pdf(pdf_path: str) -> List[Dict]:
                 }
             })
         
-        categories_str = ", ".join(EXPENSE_CATEGORIES)
-        
         prompt_text = f"""Analiza esta CARTOLA BANCARIA y extrae TODAS LAS TRANSACCIONES (cargos Y abonos).
-
-CATEGORÍAS DISPONIBLES: {categories_str}
 
 IMPORTANTE - EXTRAE TODO:
 - Extrae CADA transacción individual de la cartola
@@ -67,7 +49,7 @@ IMPORTANTE SOBRE MONEDA:
 - Todos los montos deben ser números positivos
 
 Clasifica cada transacción según:
-- Categoría (usa las categorías disponibles)
+- Categoría: Determina una categoría descriptiva y apropiada según la naturaleza de la transacción (ejemplos: "Supermercado", "Restaurante", "Transporte público", "Gasolina", "Servicios básicos", "Salud", "Educación", "Entretenimiento", "Ropa", "Transferencia bancaria", "Salario", "Reembolso", etc.). La categoría debe ser clara, específica y en español. Usa categorías consistentes para transacciones similares.
 - Monto (solo números enteros positivos, sin símbolos ni separadores)
 - Fecha (YYYY-MM-DD)
 - Vendedor/comercio
@@ -75,6 +57,9 @@ Clasifica cada transacción según:
 - Tipo de transacción (MUY IMPORTANTE):
   * "cargo": Pagos, compras, retiros, cargos, gastos, traspasos salientes (aparece en columna CARGO o con signo negativo)
   * "abono": Depósitos, transferencias recibidas, devoluciones, ingresos (aparece en columna ABONO/DEPOSITO o con signo positivo)
+- Agrega análisis de IA para el origen del movimiento:
+  * "charge_archetype": describe en 2-4 palabras el tipo de transacción (ej: "Comida rápida", "Transferencia familiar", "Suscripción streaming").
+  * "charge_origin": explica en máximo 20 palabras quién/qué originó el cargo o abono y el motivo.
 
 Responde con un ARRAY JSON con TODAS las transacciones:
 [
@@ -87,7 +72,9 @@ Responde con un ARRAY JSON con TODAS las transacciones:
     "is_fixed": "fixed o variable",
     "channel": "online|pos|atm o null",
     "merchant_normalized": "nombre limpio sin sufijos",
-    "transaction_type": "cargo o abono"
+    "transaction_type": "cargo o abono",
+    "charge_archetype": "tipo general detectado",
+    "charge_origin": "explicación corta"
   }},
   ...más transacciones...
 ]
@@ -97,7 +84,7 @@ Si no hay transacciones: responde con array vacío []"""
         message_content = [{"type": "text", "text": prompt_text}] + image_contents
         
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
@@ -122,8 +109,14 @@ Si no hay transacciones: responde con array vacío []"""
         
         validated_transactions = []
         for result in transactions:
-            if "category" not in result or result["category"] not in EXPENSE_CATEGORIES:
+            # Validar que existe categoría, si no asignar una por defecto
+            if "category" not in result or not result["category"] or not isinstance(result["category"], str):
                 result["category"] = "Otros"
+            else:
+                # Limpiar y normalizar la categoría
+                result["category"] = result["category"].strip()
+                if not result["category"]:
+                    result["category"] = "Otros"
             
             if "amount" in result:
                 result["amount"] = Decimal(str(result["amount"]))
@@ -135,8 +128,20 @@ Si no hay transacciones: responde con array vacío []"""
                     datetime.strptime(result["date"], "%Y-%m-%d")
                 except:
                     result["date"] = None
-            
-            result["analysis_method"] = "gpt-5-mini"
+
+            if not result.get("charge_archetype"):
+                result["charge_archetype"] = "Análisis pendiente"
+
+            if not result.get("charge_origin"):
+                result["charge_origin"] = "La IA no pudo identificar el origen exacto."
+
+            if "is_suspicious" not in result:
+                result["is_suspicious"] = False
+
+            if "suspicious_reason" not in result:
+                result["suspicious_reason"] = None
+
+            result["analysis_method"] = "gpt-4o-mini-charge-intel"
             validated_transactions.append(result)
         
         return validated_transactions if validated_transactions else [_default_response("No se encontraron transacciones")]
@@ -156,9 +161,14 @@ def _default_response(error_msg: str) -> Dict:
         "is_fixed": "variable",
         "channel": None,
         "merchant_normalized": None,
+        "charge_archetype": "Análisis pendiente",
+        "charge_origin": error_msg,
+        "is_suspicious": False,
+        "suspicious_reason": None,
         "analysis_method": "failed"
     }
 
 
+# Esta función ya no se usa - las categorías ahora se obtienen dinámicamente de la BD
 def get_categories() -> list:
-    return EXPENSE_CATEGORIES
+    return []

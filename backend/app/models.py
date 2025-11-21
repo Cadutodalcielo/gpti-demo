@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Numeric, Date, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Numeric, Date, Text, Boolean
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -30,5 +30,9 @@ class Expense(Base):
     channel = Column(String, nullable=True)
     merchant_normalized = Column(String, nullable=True)
     transaction_type = Column(String, default="cargo")
+    charge_archetype = Column(String, nullable=True)
+    charge_origin = Column(Text, nullable=True)
+    is_suspicious = Column(Boolean, default=False)
+    suspicious_reason = Column(Text, nullable=True)
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)

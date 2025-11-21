@@ -12,6 +12,10 @@ export interface Expense {
   channel: string | null;
   merchant_normalized: string | null;
   transaction_type: 'cargo' | 'abono';
+  charge_archetype: string | null;
+  charge_origin: string | null;
+  is_suspicious: boolean;
+  suspicious_reason: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -32,19 +36,11 @@ export interface ExpenseUpdate {
   description?: string | null;
   is_fixed?: string;
   transaction_type?: 'cargo' | 'abono';
+  charge_archetype?: string | null;
+  charge_origin?: string | null;
+  is_suspicious?: boolean;
+  suspicious_reason?: string | null;
 }
 
-export const EXPENSE_CATEGORIES = [
-  "Salud",
-  "Comida",
-  "Transporte",
-  "Vivienda",
-  "Entretenimiento",
-  "Servicios",
-  "Educación",
-  "Vestimenta",
-  "Ingresos",
-  "Otros"
-] as const;
-
-export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+// Las categorías ahora se obtienen dinámicamente del backend
+export type ExpenseCategory = string;
