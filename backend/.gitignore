@@ -46,3 +46,4 @@ htmlcov/
 postgres_data/
 
 uploads/
+docker-compose.override.yml
