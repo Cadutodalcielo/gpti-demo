@@ -214,9 +214,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                   Descripción
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                  Análisis IA
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
@@ -279,19 +276,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
-                      <td className="px-6 py-4">
-                        <input
-                          type="text"
-                          value={editForm.description || expense.description || ""}
-                          onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              description: e.target.value,
-                            })
-                          }
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
                       <td className="px-6 py-4 text-sm text-black">
                         <div>
                           <p className="font-medium">
@@ -342,9 +326,6 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                       </td>
                       <td className="px-6 py-4 text-sm text-black">
                         {expense.vendor || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-black">
-                        {expense.description || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-sm text-black">
                         <div>

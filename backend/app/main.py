@@ -201,6 +201,7 @@ def get_expenses_stats(
             net_flow=0.0,
             categories_breakdown={},
             monthly_evolution=[],
+            balance_evolution=[],
             top_merchants=[]
         )
     
@@ -231,16 +232,44 @@ def get_expenses_stats(
         for cat, data in categories.items()
     }
     
-    monthly_data = defaultdict(float)
+    monthly_charges = defaultdict(float)
+    monthly_deposits = defaultdict(float)
+    daily_balance = []
+    
     for e in expenses:
         if e.date:
             month_key = e.date[:7]
-            monthly_data[month_key] += e.amount
+            tx_type = getattr(e, 'transaction_type', 'cargo')
+            if tx_type == 'cargo':
+                monthly_charges[month_key] += e.amount
+            else:
+                monthly_deposits[month_key] += e.amount
     
-    monthly_evolution = [
-        {"month": month, "amount": amount}
-        for month, amount in sorted(monthly_data.items())
-    ]
+    monthly_evolution = []
+    all_months = sorted(set(list(monthly_charges.keys()) + list(monthly_deposits.keys())))
+    for month in all_months:
+        monthly_evolution.append({
+            "month": month,
+            "charges": monthly_charges.get(month, 0.0),
+            "deposits": monthly_deposits.get(month, 0.0)
+        })
+    
+    # Calcular evolución del saldo (acumulado)
+    sorted_expenses = sorted([e for e in expenses if e.date], key=lambda x: x.date)
+    current_balance = 0.0
+    balance_evolution = []
+    
+    for e in sorted_expenses:
+        tx_type = getattr(e, 'transaction_type', 'cargo')
+        if tx_type == 'abono':
+            current_balance += e.amount
+        else:
+            current_balance -= e.amount
+        
+        balance_evolution.append({
+            "date": e.date,
+            "balance": current_balance
+        })
     
     merchants = defaultdict(lambda: {"amount": 0, "count": 0})
     for e in expenses:
@@ -273,6 +302,7 @@ def get_expenses_stats(
         net_flow=net_flow,
         categories_breakdown=categories_breakdown,
         monthly_evolution=monthly_evolution,
+        balance_evolution=balance_evolution,
         top_merchants=top_merchants
     )
 

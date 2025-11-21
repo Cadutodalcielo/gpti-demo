@@ -13,12 +13,24 @@ interface CategoryChartProps {
 }
 
 export default function CategoryChart({ data }: CategoryChartProps) {
+  if (!data || Object.keys(data).length === 0) {
+    return (
+      <div className="text-center py-8 text-black">
+        No hay datos de categorías disponibles
+      </div>
+    );
+  }
 
-  const sortedCategories = Object.entries(data).sort(
-    ([, a], [, b]) => b.amount - a.amount
-  );
+  const sortedCategories = Object.entries(data)
+    .map(([cat, info]) => [cat, {
+      amount: typeof info.amount === 'number' ? info.amount : parseFloat(info.amount) || 0,
+      count: typeof info.count === 'number' ? info.count : parseInt(info.count) || 0,
+      percentage: typeof info.percentage === 'number' ? info.percentage : parseFloat(info.percentage) || 0
+    }])
+    .sort(([, a], [, b]) => b.amount - a.amount);
 
-  const maxAmount = Math.max(...sortedCategories.map(([, d]) => d.amount));
+  const amounts = sortedCategories.map(([, d]) => d.amount).filter(amount => !isNaN(amount) && isFinite(amount) && amount > 0);
+  const maxAmount = amounts.length > 0 ? Math.max(...amounts) : 0;
 
   const colors = [
     "bg-blue-500",
@@ -31,13 +43,17 @@ export default function CategoryChart({ data }: CategoryChartProps) {
     "bg-orange-500",
   ];
 
+  // Calcular altura aproximada: cada categoría ~68px (título + barra + espaciado)
+  // 7 categorías = ~476px, con padding total ~520px
+  const maxHeight = 520;
+
   return (
-    <div className="space-y-4">
+    <div className="max-h-[520px] overflow-y-auto pr-2 space-y-4">
       {sortedCategories.map(([category, info], index) => {
-        const widthPercentage = (info.amount / maxAmount) * 100;
+        const widthPercentage = maxAmount > 0 ? (info.amount / maxAmount) * 100 : 0;
         
         return (
-          <div key={category}>
+          <div key={category} className="flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium text-black">
                 {category}
@@ -64,12 +80,6 @@ export default function CategoryChart({ data }: CategoryChartProps) {
           </div>
         );
       })}
-
-      {sortedCategories.length === 0 && (
-        <div className="text-center py-8 text-black">
-          No hay datos de categorías disponibles
-        </div>
-      )}
     </div>
   );
 }

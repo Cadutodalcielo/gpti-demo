@@ -101,4 +101,5 @@ class DashboardStats(BaseModel):
     net_flow: float
     categories_breakdown: dict
     monthly_evolution: list
+    balance_evolution: list
     top_merchants: list

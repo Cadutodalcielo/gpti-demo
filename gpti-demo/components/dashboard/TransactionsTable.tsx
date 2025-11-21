@@ -32,7 +32,8 @@ export default function TransactionsTable({
 
   const filteredExpenses = expenses.filter((expense) => {
     const matchesSearch =
-      expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.charge_archetype?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.charge_origin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.category.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -56,7 +57,7 @@ export default function TransactionsTable({
       <div className="flex gap-4 mb-6">
         <input
           type="text"
-          placeholder="Buscar por descripción, vendedor o categoría..."
+          placeholder="Buscar por análisis IA, vendedor o categoría..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
@@ -93,9 +94,6 @@ export default function TransactionsTable({
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
                   Descripción
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
-                  Análisis IA
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-black uppercase">
                   Monto
@@ -135,9 +133,6 @@ export default function TransactionsTable({
                   </td>
                   <td className="px-4 py-3 text-sm text-black">
                     {expense.vendor || "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-black max-w-xs truncate">
-                    {expense.description || "Sin descripción"}
                   </td>
                   <td className="px-4 py-3 text-sm text-black max-w-xs">
                     <p className="font-semibold">

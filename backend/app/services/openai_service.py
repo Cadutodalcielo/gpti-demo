@@ -102,7 +102,7 @@ Si no hay transacciones: responde con array vacío []"""
         message_content = [{"type": "text", "text": prompt_text}] + image_contents
         
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
@@ -153,7 +153,7 @@ Si no hay transacciones: responde con array vacío []"""
             if "suspicious_reason" not in result:
                 result["suspicious_reason"] = None
 
-            result["analysis_method"] = "gpt-5-mini-charge-intel"
+            result["analysis_method"] = "gpt-4o-mini-charge-intel"
             validated_transactions.append(result)
         
         return validated_transactions if validated_transactions else [_default_response("No se encontraron transacciones")]
