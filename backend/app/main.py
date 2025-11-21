@@ -9,7 +9,7 @@ import uuid
 import shutil
 from pathlib import Path
 
-Base.metadata.create_all(bind=engine)
+
 UPLOAD_DIR = Path("/app/uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -21,7 +21,8 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    from app.database import ensure_schema_updates
+    from app.database import ensure_schema_updates, engine, Base
+    Base.metadata.create_all(bind=engine)
     ensure_schema_updates()
 
 app.add_middleware(
