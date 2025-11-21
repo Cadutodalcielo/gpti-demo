@@ -8,9 +8,16 @@ from openai import OpenAI
 import json
 from io import BytesIO
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = None
+    
+def get_openai_client():
+    global client
+    if client is None:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return client
 
 def process_expense_pdf(pdf_path: str) -> List[Dict]:
+    client = get_openai_client()
     try:
         images = convert_from_path(pdf_path, first_page=1, last_page=5)
         

@@ -19,6 +19,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    from app.database import ensure_schema_updates
+    ensure_schema_updates()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

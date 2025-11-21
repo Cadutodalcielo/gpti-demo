@@ -13,7 +13,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def _ensure_schema_updates():
+def ensure_schema_updates():
     """Ensure additional AI-driven columns exist in legacy databases."""
     with engine.begin() as conn:
         conn.execute(
@@ -40,9 +40,6 @@ def _ensure_schema_updates():
                 "ADD COLUMN IF NOT EXISTS suspicious_reason TEXT"
             )
         )
-
-
-_ensure_schema_updates()
 
 
 def get_db():
