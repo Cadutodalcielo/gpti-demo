@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Expense, EXPENSE_CATEGORIES } from "@/types/expense";
-import { updateExpense } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { Expense } from "@/types/expense";
+import { updateExpense, getCategories } from "@/lib/api";
 
 interface EditExpenseModalProps {
   expense: Expense;
@@ -27,6 +27,21 @@ export default function EditExpenseModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await getCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      setCategories([]);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -71,17 +86,24 @@ export default function EditExpenseModal({
             <label className="block text-sm font-medium text-black mb-1">
               Categoría
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                type="text"
+                list="category-list"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Escribe o selecciona una categoría"
+              />
+              <datalist id="category-list">
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Puedes escribir una categoría nueva o seleccionar una existente
+            </p>
           </div>
 
           <div>

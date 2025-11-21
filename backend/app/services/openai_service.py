@@ -10,20 +10,6 @@ from io import BytesIO
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-EXPENSE_CATEGORIES = [
-    "Salud",
-    "Comida",
-    "Transporte",
-    "Vivienda",
-    "Entretenimiento",
-    "Servicios",
-    "Educación",
-    "Vestimenta",
-    "Personal",
-    "Otros"
-]
-
-
 def process_expense_pdf(pdf_path: str) -> List[Dict]:
     try:
         images = convert_from_path(pdf_path, first_page=1, last_page=5)
@@ -47,11 +33,7 @@ def process_expense_pdf(pdf_path: str) -> List[Dict]:
                 }
             })
         
-        categories_str = ", ".join(EXPENSE_CATEGORIES)
-        
         prompt_text = f"""Analiza esta CARTOLA BANCARIA y extrae TODAS LAS TRANSACCIONES (cargos Y abonos).
-
-CATEGORÍAS DISPONIBLES: {categories_str}
 
 IMPORTANTE - EXTRAE TODO:
 - Extrae CADA transacción individual de la cartola
@@ -67,7 +49,7 @@ IMPORTANTE SOBRE MONEDA:
 - Todos los montos deben ser números positivos
 
 Clasifica cada transacción según:
-- Categoría (usa las categorías disponibles)
+- Categoría: Determina una categoría descriptiva y apropiada según la naturaleza de la transacción (ejemplos: "Supermercado", "Restaurante", "Transporte público", "Gasolina", "Servicios básicos", "Salud", "Educación", "Entretenimiento", "Ropa", "Transferencia bancaria", "Salario", "Reembolso", etc.). La categoría debe ser clara, específica y en español. Usa categorías consistentes para transacciones similares.
 - Monto (solo números enteros positivos, sin símbolos ni separadores)
 - Fecha (YYYY-MM-DD)
 - Vendedor/comercio
@@ -127,8 +109,14 @@ Si no hay transacciones: responde con array vacío []"""
         
         validated_transactions = []
         for result in transactions:
-            if "category" not in result or result["category"] not in EXPENSE_CATEGORIES:
+            # Validar que existe categoría, si no asignar una por defecto
+            if "category" not in result or not result["category"] or not isinstance(result["category"], str):
                 result["category"] = "Otros"
+            else:
+                # Limpiar y normalizar la categoría
+                result["category"] = result["category"].strip()
+                if not result["category"]:
+                    result["category"] = "Otros"
             
             if "amount" in result:
                 result["amount"] = Decimal(str(result["amount"]))
@@ -181,5 +169,6 @@ def _default_response(error_msg: str) -> Dict:
     }
 
 
+# Esta función ya no se usa - las categorías ahora se obtienen dinámicamente de la BD
 def get_categories() -> list:
-    return EXPENSE_CATEGORIES
+    return []

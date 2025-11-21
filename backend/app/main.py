@@ -171,8 +171,12 @@ def get_expenses(
 
 
 @app.get("/expenses/categories/list")
-def get_categories():
-    return {"categories": openai_service.get_categories()}
+def get_categories(db: Session = Depends(get_db)):
+    """Obtiene las categorías únicas existentes en la base de datos"""
+    categories = db.query(models.Expense.category).distinct().all()
+    # Extraer las categorías de las tuplas y filtrar None/vacías
+    category_list = sorted([cat[0] for cat in categories if cat[0] and cat[0].strip()])
+    return {"categories": category_list}
 
 
 @app.get("/expenses/stats", response_model=schemas.DashboardStats)

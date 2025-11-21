@@ -42,17 +42,5 @@ export interface ExpenseUpdate {
   suspicious_reason?: string | null;
 }
 
-export const EXPENSE_CATEGORIES = [
-  "Salud",
-  "Comida",
-  "Transporte",
-  "Vivienda",
-  "Entretenimiento",
-  "Servicios",
-  "Educación",
-  "Vestimenta",
-  "Ingresos",
-  "Otros"
-] as const;
-
-export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+// Las categorías ahora se obtienen dinámicamente del backend
+export type ExpenseCategory = string;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Expense, EXPENSE_CATEGORIES } from "@/types/expense";
-import { getExpenses, updateExpense, deleteExpense } from "@/lib/api";
+import { Expense } from "@/types/expense";
+import { getExpenses, updateExpense, deleteExpense, getCategories } from "@/lib/api";
 
 interface ExpensesListProps {
   refreshTrigger: number;
@@ -14,10 +14,26 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     loadExpenses();
   }, [refreshTrigger, selectedCategory]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await getCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      // Si falla, usar categorías vacías
+      setCategories([]);
+    }
+  };
 
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +72,8 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
         description: editForm.description || null,
       });
       await loadExpenses();
+      // Recargar categorías por si se agregó una nueva
+      await loadCategories();
       setEditingId(null);
       setEditForm({});
     } catch (error) {
@@ -169,7 +187,7 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todas</option>
-            {EXPENSE_CATEGORIES.map((category) => (
+            {categories.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
@@ -231,19 +249,21 @@ export default function ExpensesList({ refreshTrigger }: ExpensesListProps) {
                   {editingId === expense.id ? (
                     <>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <select
+                        <input
+                          type="text"
+                          list={`category-list-${expense.id}`}
                           value={editForm.category || expense.category}
                           onChange={(e) =>
                             setEditForm({ ...editForm, category: e.target.value })
                           }
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {EXPENSE_CATEGORIES.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
+                          placeholder="Categoría"
+                        />
+                        <datalist id={`category-list-${expense.id}`}>
+                          {categories.map((cat) => (
+                            <option key={cat} value={cat} />
                           ))}
-                        </select>
+                        </datalist>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
