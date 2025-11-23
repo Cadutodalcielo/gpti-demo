@@ -3,6 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.database import engine, Base, get_db
 from app import models, schemas
+from pydantic import BaseModel
+
+# Allow fields prefixed with model_ used by some dependencies (e.g., docling) without warnings.
+BaseModel.model_config["protected_namespaces"] = ()
+
 from app.services import openai_service, suspicious_detector
 from typing import List, Optional
 import uuid

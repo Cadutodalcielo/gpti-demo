@@ -1,6 +1,6 @@
 export function formatCurrency(amount: number | string): string {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
+
   return new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
@@ -11,7 +11,7 @@ export function formatCurrency(amount: number | string): string {
 
 export function formatDate(dateString: string | null): string {
   if (!dateString) return 'N/A';
-  
+
   try {
     return new Date(dateString).toLocaleDateString('es-CL', {
       year: 'numeric',
@@ -76,9 +76,9 @@ export function generateInsights(stats: any, expenses: any[]): Insight[] {
     });
   }
 
-  const topCategory = Object.entries(stats.categories_breakdown)
+  const topCategory: any = Object.entries(stats.categories_breakdown)
     .sort(([, a]: any, [, b]: any) => b.amount - a.amount)[0];
-  
+
   if (topCategory && topCategory[1].percentage > 40) {
     insights.push({
       type: 'recommendation',

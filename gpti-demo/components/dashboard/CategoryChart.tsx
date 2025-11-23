@@ -23,10 +23,10 @@ export default function CategoryChart({ data }: CategoryChartProps) {
 
   const sortedCategories = Object.entries(data)
     .map(([cat, info]) => [cat, {
-      amount: typeof info.amount === 'number' ? info.amount : parseFloat(info.amount) || 0,
-      count: typeof info.count === 'number' ? info.count : parseInt(info.count) || 0,
-      percentage: typeof info.percentage === 'number' ? info.percentage : parseFloat(info.percentage) || 0
-    }])
+      amount: typeof info.amount === 'number' ? info.amount : parseFloat(info.amount as any) || 0,
+      count: typeof info.count === 'number' ? info.count : parseInt(info.count as any) || 0,
+      percentage: typeof info.percentage === 'number' ? info.percentage : parseFloat(info.percentage as any) || 0
+    }] as [string, { amount: number; count: number; percentage: number }])
     .sort(([, a], [, b]) => b.amount - a.amount);
 
   const amounts = sortedCategories.map(([, d]) => d.amount).filter(amount => !isNaN(amount) && isFinite(amount) && amount > 0);
@@ -51,7 +51,7 @@ export default function CategoryChart({ data }: CategoryChartProps) {
     <div className="max-h-[520px] overflow-y-auto pr-2 space-y-4">
       {sortedCategories.map(([category, info], index) => {
         const widthPercentage = maxAmount > 0 ? (info.amount / maxAmount) * 100 : 0;
-        
+
         return (
           <div key={category} className="flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
