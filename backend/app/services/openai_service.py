@@ -3,11 +3,17 @@ import json
 from typing import Dict, List
 from datetime import datetime
 from decimal import Decimal
-from docling.document_converter import DocumentConverter
 from openai import OpenAI
 
+try:
+    from docling.document_converter import DocumentConverter
+    _docling_import_error = None
+except Exception as exc:  # pragma: no cover - best-effort guard for optional dep
+    DocumentConverter = None  # type: ignore[assignment]
+    _docling_import_error = exc
+
 client = None
-    
+
 def get_openai_client():
     global client
     if client is None:
@@ -29,6 +35,12 @@ EXPENSE_CATEGORIES = [
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
+    if DocumentConverter is None:
+        missing = "Docling no está instalado" if _docling_import_error is None else str(_docling_import_error)
+        raise RuntimeError(
+            "Docling no está disponible para procesar PDFs. "
+            f"Instálalo o revisa dependencias del sistema: {missing}"
+        )
     try:
         converter = DocumentConverter()
         result = converter.convert(pdf_path)
