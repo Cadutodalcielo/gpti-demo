@@ -145,12 +145,6 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {stats && <KPICards stats={stats} />}
 
-        {stats && (
-          <div className="mt-6">
-            <InsightsPanel stats={stats} expenses={expenses} />
-          </div>
-        )}
-
         {expenses.length > 0 && (
           <div className="mt-6">
             <SuspiciousAlertsPanel expenses={expenses} />
@@ -191,6 +185,12 @@ export default function DashboardPage() {
             onRefresh={loadData}
           />
         </div>
+
+        {stats && (
+          <div className="mt-6">
+            <InsightsPanel stats={stats} expenses={expenses} />
+          </div>
+        )}
       </div>
     </div>
   );
