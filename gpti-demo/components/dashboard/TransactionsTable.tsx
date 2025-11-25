@@ -18,6 +18,8 @@ export default function TransactionsTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar este gasto?")) return;
@@ -44,7 +46,60 @@ export default function TransactionsTable({
     return matchesSearch && matchesCategory;
   });
 
+  // Resetear página cuando cambian los filtros
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCategoryFilter(value);
+    setCurrentPage(1);
+  };
+
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
+
   const categories = Array.from(new Set(expenses.map((e) => e.category)));
+
+  // Generar números de página para mostrar
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -60,12 +115,12 @@ export default function TransactionsTable({
           type="text"
           placeholder="Buscar por análisis IA, vendedor o categoría..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
         />
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
+          onChange={(e) => handleCategoryChange(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
         >
           <option value="">Todas las categorías</option>
@@ -111,7 +166,7 @@ export default function TransactionsTable({
               </tr>
             </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredExpenses.map((expense) => {
+            {paginatedExpenses.map((expense) => {
               const isCargo = expense.transaction_type === 'cargo';
               const rowClass = expense.is_suspicious ? "bg-red-50/70" : "";
               return (
@@ -205,6 +260,63 @@ export default function TransactionsTable({
           </div>
         )}
       </div>
+
+      {/* Controles de paginación */}
+      {filteredExpenses.length > 0 && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+          <div className="text-sm text-gray-600">
+            Mostrando {startIndex + 1} a {Math.min(endIndex, filteredExpenses.length)} de {filteredExpenses.length} transacciones
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Botón Anterior */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Anterior
+            </button>
+
+            {/* Números de página */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, index) => {
+                if (page === '...') {
+                  return (
+                    <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                
+                const pageNum = page as number;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-gray-100 border-gray-300 text-black'
+                        : 'border-gray-300 text-black hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Botón Siguiente */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
 
       {editingExpense && (
         <EditExpenseModal

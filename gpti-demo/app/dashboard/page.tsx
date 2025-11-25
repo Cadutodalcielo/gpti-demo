@@ -11,7 +11,6 @@ import TemporalChart from "@/components/dashboard/TemporalChart";
 import FixedVariablePanel from "@/components/dashboard/FixedVariablePanel";
 import TransactionsTable from "@/components/dashboard/TransactionsTable";
 import InsightsPanel from "@/components/dashboard/InsightsPanel";
-import ChargeAnalysisPanel from "@/components/dashboard/ChargeAnalysisPanel";
 import SuspiciousAlertsPanel from "@/components/dashboard/SuspiciousAlertsPanel";
 import ChargeTypeSummary from "@/components/dashboard/ChargeTypeSummary";
 
@@ -158,15 +157,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {expenses.length > 0 && (
-          <div className="mt-6">
-            <ChargeAnalysisPanel expenses={expenses} />
-          </div>
-        )}
-
         {stats && (
           <div className="mt-6">
-            <ChargeTypeSummary stats={stats} />
+            <ChargeTypeSummary stats={stats} expenses={expenses} />
           </div>
         )}
 
