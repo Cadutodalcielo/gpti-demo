@@ -35,6 +35,7 @@ export default function TransactionsTable({
       expense.charge_archetype?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.charge_origin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.merchant_category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.category.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory =
@@ -90,10 +91,13 @@ export default function TransactionsTable({
                   Categoría
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
-                  Vendedor
+                  Comercio
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
-                  Descripción
+                  Tipo Comercio
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-black uppercase">
+                  Motivo/Origen
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-black uppercase">
                   Monto
@@ -132,25 +136,36 @@ export default function TransactionsTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-black">
-                    {expense.vendor || "N/A"}
+                    {expense.merchant_normalized || expense.vendor || "N/A"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-black max-w-xs">
-                    <p className="font-semibold">
-                      {expense.charge_archetype || "Sin análisis"}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                      {expense.charge_origin || "La IA no entregó más contexto."}
-                    </p>
-                    {expense.is_suspicious && (
-                      <div className="mt-2">
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                          Alerta sospechosa
-                        </span>
-                        <p className="text-xs text-red-600 mt-1 line-clamp-3">
-                          {expense.suspicious_reason || "Movimiento fuera de patrón."}
-                        </p>
-                      </div>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {expense.merchant_category ? (
+                      <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                        {expense.merchant_category}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-black max-w-md">
+                    <div>
+                      <p className="font-semibold text-gray-900 mb-1">
+                        {expense.charge_archetype || "Sin análisis"}
+                      </p>
+                      <p className="text-xs text-gray-600 line-clamp-3">
+                        {expense.charge_origin || "La IA no entregó más contexto."}
+                      </p>
+                      {expense.is_suspicious && (
+                        <div className="mt-2">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                            ⚠️ Alerta sospechosa
+                          </span>
+                          <p className="text-xs text-red-600 mt-1 line-clamp-2">
+                            {expense.suspicious_reason || "Movimiento fuera de patrón."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-semibold ${
                     isCargo ? "text-red-600" : "text-green-600"

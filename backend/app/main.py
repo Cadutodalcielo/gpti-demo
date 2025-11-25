@@ -140,6 +140,7 @@ async def upload_expense(
             "is_fixed": transaction.get("is_fixed", "variable"),
             "channel": transaction.get("channel"),
             "merchant_normalized": transaction.get("merchant_normalized"),
+            "merchant_category": transaction.get("merchant_category"),
             "transaction_type": transaction.get("transaction_type", "cargo"),
             "charge_archetype": transaction.get("charge_archetype"),
             "charge_origin": transaction.get("charge_origin"),
@@ -217,7 +218,13 @@ def get_expenses_stats(
             categories_breakdown={},
             monthly_evolution=[],
             balance_evolution=[],
-            top_merchants=[]
+            top_merchants=[],
+            charge_type_summary={
+                "suscripciones": {"amount": 0.0, "count": 0},
+                "compras_diarias": {"amount": 0.0, "count": 0},
+                "pagos_excepcionales": {"amount": 0.0, "count": 0},
+                "otros": {"amount": 0.0, "count": 0}
+            }
         )
     
     total = sum(e.amount for e in expenses)
@@ -306,6 +313,36 @@ def get_expenses_stats(
         reverse=True
     )[:10]
     
+    # Clasificar cargos por tipo (suscripciones, compras diarias, pagos excepcionales)
+    charge_type_summary = {
+        "suscripciones": {"amount": 0.0, "count": 0},
+        "compras_diarias": {"amount": 0.0, "count": 0},
+        "pagos_excepcionales": {"amount": 0.0, "count": 0},
+        "otros": {"amount": 0.0, "count": 0}
+    }
+    
+    for e in expenses:
+        if getattr(e, 'transaction_type', 'cargo') == 'cargo':
+            archetype_lower = (e.charge_archetype or "").lower()
+            merchant_cat_lower = (e.merchant_category or "").lower()
+            
+            # Detectar suscripciones
+            if any(keyword in archetype_lower for keyword in ['suscripción', 'suscripcion', 'subscription', 'recurrente', 'mensual']):
+                charge_type_summary["suscripciones"]["amount"] += e.amount
+                charge_type_summary["suscripciones"]["count"] += 1
+            # Detectar compras diarias (comida, transporte, supermercado)
+            elif any(keyword in archetype_lower or keyword in merchant_cat_lower for keyword in 
+                    ['comida', 'restaurante', 'supermercado', 'transporte', 'gasolinera', 'cafetería', 'cafeteria']):
+                charge_type_summary["compras_diarias"]["amount"] += e.amount
+                charge_type_summary["compras_diarias"]["count"] += 1
+            # Detectar pagos excepcionales (montos altos, servicios, pagos únicos)
+            elif e.is_fixed == "fixed" or e.amount > (avg_ticket * 3):
+                charge_type_summary["pagos_excepcionales"]["amount"] += e.amount
+                charge_type_summary["pagos_excepcionales"]["count"] += 1
+            else:
+                charge_type_summary["otros"]["amount"] += e.amount
+                charge_type_summary["otros"]["count"] += 1
+    
     return schemas.DashboardStats(
         total_expenses=total,
         total_transactions=count,
@@ -318,7 +355,8 @@ def get_expenses_stats(
         categories_breakdown=categories_breakdown,
         monthly_evolution=monthly_evolution,
         balance_evolution=balance_evolution,
-        top_merchants=top_merchants
+        top_merchants=top_merchants,
+        charge_type_summary=charge_type_summary
     )
 
 

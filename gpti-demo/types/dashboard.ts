@@ -29,6 +29,12 @@ export interface DashboardStats {
     count: number;
     avg_ticket: number;
   }>;
+  charge_type_summary: {
+    suscripciones: { amount: number; count: number };
+    compras_diarias: { amount: number; count: number };
+    pagos_excepcionales: { amount: number; count: number };
+    otros: { amount: number; count: number };
+  };
 }
 
 export interface ExpenseFull {

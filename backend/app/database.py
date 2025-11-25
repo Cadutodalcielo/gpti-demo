@@ -40,6 +40,12 @@ def ensure_schema_updates():
                 "ADD COLUMN IF NOT EXISTS suspicious_reason TEXT"
             )
         )
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS expenses "
+                "ADD COLUMN IF NOT EXISTS merchant_category VARCHAR(255)"
+            )
+        )
 
 
 def get_db():

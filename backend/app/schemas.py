@@ -30,6 +30,7 @@ class ExpenseBase(BaseModel):
     is_fixed: str = "variable"
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
+    merchant_category: Optional[str] = None
     transaction_type: str = "cargo"
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
@@ -52,6 +53,7 @@ class ExpenseUpdate(BaseModel):
     is_fixed: Optional[str] = None
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
+    merchant_category: Optional[str] = None
     transaction_type: Optional[str] = None
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
@@ -103,3 +105,4 @@ class DashboardStats(BaseModel):
     monthly_evolution: list
     balance_evolution: list
     top_merchants: list
+    charge_type_summary: dict
