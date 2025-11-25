@@ -10,30 +10,34 @@ interface ChargeTypeSummaryProps {
   expenses: Expense[];
 }
 
-const typeLabels: Record<string, { label: string; description: string; color: string; bgColor: string }> = {
+const typeLabels: Record<string, { label: string; description: string; color: string; bgColor: string; barColor: string }> = {
   suscripciones: {
     label: "Suscripciones",
     description: "Gastos recurrentes mensuales",
     color: "text-purple-700",
-    bgColor: "bg-purple-100"
+    bgColor: "bg-purple-100",
+    barColor: "bg-purple-500"
   },
   compras_diarias: {
     label: "Compras Diarias",
     description: "Gastos cotidianos y esenciales",
     color: "text-blue-700",
-    bgColor: "bg-blue-100"
+    bgColor: "bg-blue-100",
+    barColor: "bg-blue-500"
   },
   pagos_excepcionales: {
     label: "Pagos Excepcionales",
     description: "Gastos únicos o de alto monto",
     color: "text-orange-700",
-    bgColor: "bg-orange-100"
+    bgColor: "bg-orange-100",
+    barColor: "bg-orange-500"
   },
   otros: {
     label: "Otros",
     description: "Otros tipos de gastos",
     color: "text-gray-700",
-    bgColor: "bg-gray-100"
+    bgColor: "bg-gray-100",
+    barColor: "bg-gray-500"
   }
 };
 
@@ -150,10 +154,10 @@ export default function ChargeTypeSummary({ stats, expenses }: ChargeTypeSummary
                 </p>
               </div>
 
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+              <div className="w-full bg-gray-200 rounded-full h-3 mt-3 overflow-hidden">
                 <div
-                  className={`h-2 rounded-full ${typeInfo.bgColor}`}
-                  style={{ width: `${percentage}%` }}
+                  className={`h-3 rounded-full ${typeInfo.barColor} transition-all duration-300`}
+                  style={{ width: `${percentage}%`, minWidth: percentage > 0 ? '3px' : '0' }}
                 />
               </div>
             </div>
