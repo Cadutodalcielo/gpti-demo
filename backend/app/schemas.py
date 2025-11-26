@@ -36,6 +36,7 @@ class ExpenseBase(BaseModel):
     charge_origin: Optional[str] = None
     is_suspicious: bool = False
     suspicious_reason: Optional[str] = None
+    suspicion_score: Optional[float] = None
 
 
 class ExpenseCreate(ExpenseBase):
@@ -59,6 +60,7 @@ class ExpenseUpdate(BaseModel):
     charge_origin: Optional[str] = None
     is_suspicious: Optional[bool] = None
     suspicious_reason: Optional[str] = None
+    suspicion_score: Optional[float] = None
 
 
 class Expense(ExpenseBase):

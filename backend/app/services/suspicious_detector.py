@@ -3,16 +3,37 @@ from __future__ import annotations
 from collections import defaultdict
 from statistics import mean
 from typing import Dict, List, Optional
+from datetime import datetime, time
+import re
 
 from app import models
+from app.services import openai_service
+
+# Niveles de sensibilidad
+SENSITIVITY_LEVELS = {
+    "conservative": {"threshold": 0.7, "multiplier": 1.5},  # Más permisivo
+    "standard": {"threshold": 0.5, "multiplier": 2.0},      # Estándar
+    "strict": {"threshold": 0.3, "multiplier": 2.5},       # Más estricto
+}
+
+DEFAULT_SENSITIVITY = "standard"
 
 
-def annotate_transactions(transactions: List[Dict], db) -> List[Dict]:
-    """Annotate transactions with suspicious flags using historical expenses."""
+def annotate_transactions(transactions: List[Dict], db, sensitivity: str = DEFAULT_SENSITIVITY) -> List[Dict]:
+    """Annotate transactions with suspicious flags using historical expenses.
+    
+    Args:
+        transactions: List of transaction dictionaries to analyze
+        db: Database session
+        sensitivity: Sensitivity level ('conservative', 'standard', 'strict')
+    """
     history = db.query(models.Expense).all()
+    sensitivity_config = SENSITIVITY_LEVELS.get(sensitivity, SENSITIVITY_LEVELS[DEFAULT_SENSITIVITY])
+    
     for transaction in transactions:
         transaction.setdefault("is_suspicious", False)
         transaction.setdefault("suspicious_reason", None)
+        transaction.setdefault("suspicion_score", 0.0)
 
     if not history:
         return transactions
@@ -26,62 +47,121 @@ def annotate_transactions(transactions: List[Dict], db) -> List[Dict]:
         vendor_key = _normalize_vendor(
             transaction.get("merchant_normalized") or transaction.get("vendor")
         )
+        transaction_date = transaction.get("date")
+        merchant_category = transaction.get("merchant_category")
 
         reasons: List[str] = []
+        suspicion_score = 0.0
         vendor_stats = stats["vendors"].get(vendor_key) if vendor_key else None
         category_stats = stats["categories"].get(category)
         global_stats = stats["global"]
 
+        # 1. Análisis de monto por comercio
         if vendor_stats and vendor_stats["count"] >= 3:
-            threshold = vendor_stats["mean"] + (2.5 * vendor_stats["std"])
+            threshold = vendor_stats["mean"] + (sensitivity_config["multiplier"] * vendor_stats["std"])
             if vendor_stats["std"] == 0:
-                threshold = vendor_stats["mean"] * 1.8
+                threshold = vendor_stats["mean"] * (1.5 + sensitivity_config["multiplier"] * 0.2)
             if amount > threshold:
+                multiplier = amount / vendor_stats["mean"] if vendor_stats["mean"] > 0 else 0
+                score_increase = min(0.4, multiplier / 10)
+                suspicion_score += score_increase
                 reasons.append(
-                    f"Monto inusualmente alto para {transaction.get('vendor') or 'este comercio'} "
-                    f"(histórico {vendor_stats['mean']:.0f}, observado {amount:.0f})."
+                    f"Monto {multiplier:.1f}x mayor al promedio histórico en {transaction.get('vendor') or 'este comercio'} "
+                    f"(promedio: {vendor_stats['mean']:.0f}, observado: {amount:.0f})."
                 )
 
+            # Detección de cambio de tipo de transacción
             historic_types = vendor_stats["types"]
             if (
                 tx_type == "abono"
                 and historic_types.get("abono", 0) == 0
                 and historic_types.get("cargo", 0) >= 3
             ):
+                suspicion_score += 0.2
                 reasons.append(
-                    "Es el primer abono asociado a este comercio, previamente solo registraba cargos."
+                    "Primer abono en un comercio que previamente solo registraba cargos."
                 )
         elif (
             not vendor_stats
             and global_stats["count"] >= 15
             and amount > global_stats["p95"]
         ):
+            suspicion_score += 0.3
             reasons.append(
-                "Comercio nuevo con un monto por sobre el percentil 95 de tu historial."
+                f"Comercio nuevo con monto superior al percentil 95 de tu historial ({global_stats['p95']:.0f})."
             )
 
+        # 2. Análisis de categoría
         if (
             category_stats
             and category_stats["count"] >= 5
             and amount > (category_stats["p90"] * 1.4)
         ):
+            multiplier = amount / category_stats["p90"] if category_stats["p90"] > 0 else 0
+            suspicion_score += min(0.25, multiplier / 15)
             reasons.append(
-                f"Monto fuera de patrón para la categoría {category}. "
-                f"Percentil 90: {category_stats['p90']:.0f}."
+                f"Monto {multiplier:.1f}x superior al percentil 90 para la categoría '{category}' "
+                f"(percentil 90: {category_stats['p90']:.0f})."
             )
 
+        # 3. Análisis global de monto
         if (
             tx_type == "cargo"
             and stats["global"]["count"] >= 20
-            and amount > stats["global"]["mean"] * 3.5
+            and amount > stats["global"]["mean"] * (2.5 + sensitivity_config["multiplier"] * 0.5)
         ):
+            multiplier = amount / stats["global"]["mean"] if stats["global"]["mean"] > 0 else 0
+            suspicion_score += min(0.3, multiplier / 12)
             reasons.append(
-                "Cargo excede 3.5 veces tu gasto promedio histórico."
+                f"Cargo {multiplier:.1f}x superior a tu gasto promedio histórico ({stats['global']['mean']:.0f})."
             )
 
-        if reasons:
+        # 4. Análisis de fecha/horario (si está disponible)
+        if transaction_date:
+            date_analysis = _analyze_date_pattern(transaction_date, history, stats)
+            if date_analysis["is_unusual"]:
+                suspicion_score += date_analysis["score"]
+                reasons.append(date_analysis["reason"])
+
+        # 5. Análisis de frecuencia de comercio
+        if vendor_key and vendor_key in stats["vendor_frequency"]:
+            freq_stats = stats["vendor_frequency"][vendor_key]
+            days_since_last = _days_since_last_transaction(transaction_date, freq_stats["last_date"])
+            if days_since_last > 0 and days_since_last > freq_stats["avg_interval"] * 3:
+                suspicion_score += 0.15
+                reasons.append(
+                    f"Transacción después de {days_since_last} días, cuando el intervalo promedio es de {freq_stats['avg_interval']:.0f} días."
+                )
+
+        # 6. Análisis de categoría de comercio atípica
+        if merchant_category and vendor_key:
+            vendor_categories = stats["vendor_categories"].get(vendor_key, set())
+            if merchant_category not in vendor_categories and len(vendor_categories) > 0:
+                suspicion_score += 0.1
+                reasons.append(
+                    f"Comercio con categoría '{merchant_category}' diferente a sus categorías históricas."
+                )
+
+        # Aplicar umbral de sensibilidad
+        transaction["suspicion_score"] = min(1.0, suspicion_score)
+        if suspicion_score >= sensitivity_config["threshold"]:
             transaction["is_suspicious"] = True
-            transaction["suspicious_reason"] = " ".join(reasons)
+            
+            # Generar explicación mejorada con IA si hay razones
+            if reasons:
+                historical_context = {
+                    "avg_amount": global_stats.get("mean", 0),
+                    "total_transactions": global_stats.get("count", 0),
+                }
+                try:
+                    transaction["suspicious_reason"] = openai_service.generate_suspicious_explanation(
+                        transaction, reasons, historical_context
+                    )
+                except:
+                    # Fallback a explicación simple si falla IA
+                    transaction["suspicious_reason"] = " | ".join(reasons)
+            else:
+                transaction["suspicious_reason"] = "Movimiento marcado como sospechoso por el sistema."
 
     return transactions
 
@@ -90,8 +170,10 @@ def _build_stats(expenses: List[models.Expense]) -> Dict:
     global_amounts: List[float] = []
     category_amounts: Dict[str, List[float]] = defaultdict(list)
     vendor_amounts: Dict[str, Dict[str, object]] = defaultdict(
-        lambda: {"amounts": [], "types": defaultdict(int)}
+        lambda: {"amounts": [], "types": defaultdict(int), "dates": []}
     )
+    vendor_categories: Dict[str, set] = defaultdict(set)
+    vendor_frequency: Dict[str, Dict] = defaultdict(lambda: {"dates": [], "last_date": None})
 
     for expense in expenses:
         try:
@@ -109,6 +191,33 @@ def _build_stats(expenses: List[models.Expense]) -> Dict:
         if vendor_key:
             vendor_amounts[vendor_key]["amounts"].append(amount)
             vendor_amounts[vendor_key]["types"][expense.transaction_type or "cargo"] += 1
+            if expense.date:
+                vendor_amounts[vendor_key]["dates"].append(expense.date)
+                vendor_frequency[vendor_key]["dates"].append(expense.date)
+            if expense.merchant_category:
+                vendor_categories[vendor_key].add(expense.merchant_category)
+
+    # Calcular frecuencias de comercios
+    for vendor_key, freq_data in vendor_frequency.items():
+        dates = sorted([d for d in freq_data["dates"] if d])
+        if len(dates) > 1:
+            intervals = []
+            for i in range(1, len(dates)):
+                try:
+                    date1 = datetime.strptime(dates[i-1], "%Y-%m-%d")
+                    date2 = datetime.strptime(dates[i], "%Y-%m-%d")
+                    intervals.append((date2 - date1).days)
+                except:
+                    pass
+            if intervals:
+                freq_data["avg_interval"] = mean(intervals)
+                freq_data["last_date"] = dates[-1]
+            else:
+                freq_data["avg_interval"] = 0
+                freq_data["last_date"] = dates[0] if dates else None
+        elif dates:
+            freq_data["last_date"] = dates[0]
+            freq_data["avg_interval"] = 0
 
     return {
         "global": _metrics(global_amounts),
@@ -120,6 +229,8 @@ def _build_stats(expenses: List[models.Expense]) -> Dict:
             }
             for k, data in vendor_amounts.items()
         },
+        "vendor_categories": dict(vendor_categories),
+        "vendor_frequency": dict(vendor_frequency),
     }
 
 
@@ -169,4 +280,57 @@ def _normalize_vendor(name: Optional[str]) -> Optional[str]:
     if not name:
         return None
     return name.strip().lower()
+
+
+def _analyze_date_pattern(transaction_date: str, history: List[models.Expense], stats: Dict) -> Dict:
+    """Analiza si la fecha/horario de la transacción es inusual."""
+    try:
+        tx_datetime = datetime.strptime(transaction_date, "%Y-%m-%d")
+        tx_weekday = tx_datetime.weekday()  # 0 = lunes, 6 = domingo
+        
+        # Obtener días de la semana más comunes en el historial
+        weekday_counts = defaultdict(int)
+        for expense in history:
+            if expense.date:
+                try:
+                    exp_date = datetime.strptime(expense.date, "%Y-%m-%d")
+                    weekday_counts[exp_date.weekday()] += 1
+                except:
+                    pass
+        
+        if weekday_counts:
+            most_common_weekday = max(weekday_counts.items(), key=lambda x: x[1])[0]
+            total_transactions = sum(weekday_counts.values())
+            weekday_frequency = weekday_counts[tx_weekday] / total_transactions if total_transactions > 0 else 0
+            
+            # Si el día de la semana es muy poco frecuente (< 5% de las transacciones)
+            if weekday_frequency < 0.05 and total_transactions > 20:
+                return {
+                    "is_unusual": True,
+                    "score": 0.1,
+                    "reason": f"Transacción en {_weekday_name(tx_weekday)}, día poco frecuente en tu historial."
+                }
+    
+    except:
+        pass
+    
+    return {"is_unusual": False, "score": 0.0, "reason": ""}
+
+
+def _weekday_name(weekday: int) -> str:
+    """Convierte número de día de la semana a nombre."""
+    days = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+    return days[weekday] if 0 <= weekday < 7 else "día desconocido"
+
+
+def _days_since_last_transaction(transaction_date: Optional[str], last_date: Optional[str]) -> int:
+    """Calcula días desde la última transacción."""
+    if not transaction_date or not last_date:
+        return -1
+    try:
+        tx_date = datetime.strptime(transaction_date, "%Y-%m-%d")
+        last = datetime.strptime(last_date, "%Y-%m-%d")
+        return (tx_date - last).days
+    except:
+        return -1
 

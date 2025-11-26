@@ -17,6 +17,7 @@ export interface Expense {
   charge_origin: string | null;
   is_suspicious: boolean;
   suspicious_reason: string | null;
+  suspicion_score: number | null;
   created_at: string;
   updated_at: string | null;
 }

@@ -132,3 +132,26 @@ export async function getDashboardStats(month?: string): Promise<any> {
     throw error;
   }
 }
+
+export async function getSensitivity(): Promise<{ sensitivity: string }> {
+  const response = await fetch(`${API_BASE_URL}/settings/sensitivity`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch sensitivity");
+  }
+  return response.json();
+}
+
+export async function setSensitivity(sensitivity: "conservative" | "standard" | "strict"): Promise<{ sensitivity: string; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/settings/sensitivity`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ sensitivity }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to set sensitivity");
+  }
+  return response.json();
+}

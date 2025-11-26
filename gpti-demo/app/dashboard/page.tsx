@@ -13,6 +13,7 @@ import TransactionsTable from "@/components/dashboard/TransactionsTable";
 import InsightsPanel from "@/components/dashboard/InsightsPanel";
 import SuspiciousAlertsPanel from "@/components/dashboard/SuspiciousAlertsPanel";
 import ChargeTypeSummary from "@/components/dashboard/ChargeTypeSummary";
+import SensitivitySettings from "@/components/dashboard/SensitivitySettings";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -143,13 +144,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <SensitivitySettings />
+        </div>
+        
         {stats && <KPICards stats={stats} />}
-
-        {expenses.length > 0 && (
-          <div className="mt-6">
-            <SuspiciousAlertsPanel expenses={expenses} />
-          </div>
-        )}
 
         {stats && (
           <div className="mt-6">
@@ -185,6 +184,12 @@ export default function DashboardPage() {
             onRefresh={loadData}
           />
         </div>
+
+        {expenses.length > 0 && (
+          <div className="mt-6">
+            <SuspiciousAlertsPanel expenses={expenses} />
+          </div>
+        )}
 
         {stats && (
           <div className="mt-6">

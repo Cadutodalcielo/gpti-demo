@@ -35,5 +35,6 @@ class Expense(Base):
     charge_origin = Column(Text, nullable=True)
     is_suspicious = Column(Boolean, default=False)
     suspicious_reason = Column(Text, nullable=True)
+    suspicion_score = Column(Float, nullable=True)
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)

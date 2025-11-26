@@ -239,3 +239,57 @@ def _default_response(error_msg: str) -> Dict:
 
 def get_categories() -> list:
     return EXPENSE_CATEGORIES
+
+
+def generate_suspicious_explanation(transaction: Dict, suspicious_reasons: List[str], historical_context: Dict) -> str:
+    """Genera una explicación detallada y contextual usando IA sobre por qué una transacción es sospechosa."""
+    client = get_openai_client()
+    
+    try:
+        context_prompt = f"""Analiza la siguiente transacción sospechosa y genera una explicación clara y útil para el usuario.
+
+TRANSACCIÓN:
+- Fecha: {transaction.get('date', 'N/A')}
+- Monto: ${transaction.get('amount', 0):,.0f}
+- Comercio: {transaction.get('vendor') or transaction.get('merchant_normalized') or 'Desconocido'}
+- Categoría: {transaction.get('category', 'N/A')}
+- Tipo: {transaction.get('transaction_type', 'cargo')}
+- Motivo detectado: {transaction.get('charge_archetype', 'N/A')}
+
+RAZONES TÉCNICAS DE SOSPECHA:
+{chr(10).join(f"- {reason}" for reason in suspicious_reasons)}
+
+CONTEXTO HISTÓRICO:
+- Promedio histórico: ${historical_context.get('avg_amount', 0):,.0f}
+- Total de transacciones históricas: {historical_context.get('total_transactions', 0)}
+
+INSTRUCCIONES:
+Genera una explicación clara, concisa y útil (máximo 2-3 oraciones) que explique por qué esta transacción es inusual para este usuario específico. 
+Sé específico con números y comparaciones. Usa un tono profesional pero accesible.
+NO repitas las razones técnicas literalmente, sino explícalas de manera natural y comprensible.
+
+Responde SOLO con la explicación, sin formato adicional."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un asistente financiero experto que explica de manera clara y útil por qué ciertas transacciones son inusuales para un usuario específico."
+                },
+                {
+                    "role": "user",
+                    "content": context_prompt
+                }
+            ],
+            temperature=0.3,
+            max_tokens=150
+        )
+        
+        explanation = response.choices[0].message.content.strip()
+        return explanation if explanation else " | ".join(suspicious_reasons)
+        
+    except Exception as e:
+        print(f"Error generando explicación con IA: {str(e)}")
+        # Fallback a explicación simple
+        return " | ".join(suspicious_reasons)

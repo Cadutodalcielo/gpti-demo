@@ -53,6 +53,30 @@ def health_check():
     return {"status": "healthy"}
 
 
+# Configuración de sensibilidad (por ahora en memoria, luego se puede hacer persistente)
+_user_sensitivity = {}  # En producción, esto debería estar en base de datos
+
+
+@app.get("/settings/sensitivity")
+def get_sensitivity():
+    """Obtiene el nivel de sensibilidad configurado (default: standard)"""
+    # Por ahora retorna default, luego se puede obtener de base de datos por usuario
+    return {"sensitivity": "standard"}
+
+
+class SensitivityRequest(BaseModel):
+    sensitivity: str
+
+@app.post("/settings/sensitivity")
+def set_sensitivity(request: SensitivityRequest):
+    """Configura el nivel de sensibilidad"""
+    sensitivity = request.sensitivity
+    if sensitivity not in ["conservative", "standard", "strict"]:
+        raise HTTPException(status_code=400, detail="Sensitivity must be: conservative, standard, or strict")
+    # Por ahora solo retorna, luego se puede guardar en base de datos
+    return {"sensitivity": sensitivity, "message": "Sensitivity updated"}
+
+
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     db_item = models.Item(**item.dict())
@@ -123,7 +147,9 @@ async def upload_expense(
     
     try:
         transactions = openai_service.process_expense_pdf(str(file_path))
-        transactions = suspicious_detector.annotate_transactions(transactions, db)
+        # Obtener sensibilidad desde query param o usar default
+        sensitivity = "standard"  # Por ahora fijo, luego se puede hacer configurable
+        transactions = suspicious_detector.annotate_transactions(transactions, db, sensitivity)
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
@@ -146,6 +172,7 @@ async def upload_expense(
             "charge_origin": transaction.get("charge_origin"),
             "is_suspicious": transaction.get("is_suspicious", False),
             "suspicious_reason": transaction.get("suspicious_reason"),
+            "suspicion_score": transaction.get("suspicion_score"),
             "pdf_filename": file.filename,
             "pdf_path": str(file_path),
             "analysis_method": transaction.get("analysis_method")
