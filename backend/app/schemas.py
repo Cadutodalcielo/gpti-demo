@@ -30,11 +30,13 @@ class ExpenseBase(BaseModel):
     is_fixed: str = "variable"
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
+    merchant_category: Optional[str] = None
     transaction_type: str = "cargo"
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
     is_suspicious: bool = False
     suspicious_reason: Optional[str] = None
+    suspicion_score: Optional[float] = None
 
 
 class ExpenseCreate(ExpenseBase):
@@ -52,11 +54,13 @@ class ExpenseUpdate(BaseModel):
     is_fixed: Optional[str] = None
     channel: Optional[str] = None
     merchant_normalized: Optional[str] = None
+    merchant_category: Optional[str] = None
     transaction_type: Optional[str] = None
     charge_archetype: Optional[str] = None
     charge_origin: Optional[str] = None
     is_suspicious: Optional[bool] = None
     suspicious_reason: Optional[str] = None
+    suspicion_score: Optional[float] = None
 
 
 class Expense(ExpenseBase):
@@ -103,3 +107,4 @@ class DashboardStats(BaseModel):
     monthly_evolution: list
     balance_evolution: list
     top_merchants: list
+    charge_type_summary: dict

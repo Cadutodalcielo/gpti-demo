@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getDashboardStats, getExpenses } from "@/lib/api";
+import { getDashboardStats, getExpenses, deleteAllExpenses, reprocessSuspiciousFlags } from "@/lib/api";
 import { DashboardStats } from "@/types/dashboard";
 import { Expense } from "@/types/expense";
 import Navigation from "@/components/Navigation";
@@ -11,8 +11,9 @@ import TemporalChart from "@/components/dashboard/TemporalChart";
 import FixedVariablePanel from "@/components/dashboard/FixedVariablePanel";
 import TransactionsTable from "@/components/dashboard/TransactionsTable";
 import InsightsPanel from "@/components/dashboard/InsightsPanel";
-import ChargeAnalysisPanel from "@/components/dashboard/ChargeAnalysisPanel";
 import SuspiciousAlertsPanel from "@/components/dashboard/SuspiciousAlertsPanel";
+import ChargeTypeSummary from "@/components/dashboard/ChargeTypeSummary";
+import SensitivitySettings from "@/components/dashboard/SensitivitySettings";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -101,7 +102,7 @@ export default function DashboardPage() {
       
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-black">
                 Dashboard
@@ -137,29 +138,55 @@ export default function DashboardPage() {
                   Ver todos
                 </button>
               )}
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await reprocessSuspiciousFlags();
+                    alert(`Alertas reprocesadas: ${result.suspicious_count} de ${result.total} transacciones marcadas como sospechosas.`);
+                    loadData();
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    alert("Error al reprocesar alertas: " + errorMessage);
+                  }
+                }}
+                className="mt-6 px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Reprocesar alertas de transacciones sospechosas"
+              >
+                Reprocesar Alertas
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirm("¿Estás seguro de que quieres eliminar TODAS las transacciones? Esta acción no se puede deshacer.")) {
+                    try {
+                      await deleteAllExpenses();
+                      alert("Todas las transacciones han sido eliminadas. Recargando...");
+                      loadData();
+                    } catch (error) {
+                      const errorMessage = error instanceof Error ? error.message : String(error);
+                      alert("Error al eliminar las transacciones: " + errorMessage);
+                    }
+                  }
+                }}
+                className="mt-6 px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                title="Eliminar todas las transacciones"
+              >
+                Limpiar datos
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <SensitivitySettings />
+        </div>
+        
         {stats && <KPICards stats={stats} />}
 
         {stats && (
           <div className="mt-6">
-            <InsightsPanel stats={stats} expenses={expenses} />
-          </div>
-        )}
-
-        {expenses.length > 0 && (
-          <div className="mt-6">
-            <SuspiciousAlertsPanel expenses={expenses} />
-          </div>
-        )}
-
-        {expenses.length > 0 && (
-          <div className="mt-6">
-            <ChargeAnalysisPanel expenses={expenses} />
+            <ChargeTypeSummary stats={stats} expenses={expenses} />
           </div>
         )}
 
@@ -191,6 +218,18 @@ export default function DashboardPage() {
             onRefresh={loadData}
           />
         </div>
+
+        {expenses.length > 0 && (
+          <div className="mt-6">
+            <SuspiciousAlertsPanel expenses={expenses} />
+          </div>
+        )}
+
+        {stats && (
+          <div className="mt-6">
+            <InsightsPanel stats={stats} expenses={expenses} />
+          </div>
+        )}
       </div>
     </div>
   );
