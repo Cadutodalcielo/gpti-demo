@@ -149,7 +149,17 @@ async def upload_expense(
         transactions = openai_service.process_expense_pdf(str(file_path))
         # Obtener sensibilidad desde query param o usar default
         sensitivity = "standard"  # Por ahora fijo, luego se puede hacer configurable
-        transactions = suspicious_detector.annotate_transactions(transactions, db, sensitivity)
+        
+        # Extraer nombres de comercios del lote actual para excluirlos del historial
+        current_vendors = [
+            tx.get("merchant_normalized") or tx.get("vendor") 
+            for tx in transactions 
+            if tx.get("merchant_normalized") or tx.get("vendor")
+        ]
+        
+        transactions = suspicious_detector.annotate_transactions(
+            transactions, db, sensitivity, exclude_vendors=current_vendors
+        )
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
@@ -412,6 +422,244 @@ def update_expense(
     db.commit()
     db.refresh(db_expense)
     return db_expense
+
+
+@app.delete("/expenses/clear/all")
+def delete_all_expenses(db: Session = Depends(get_db)):
+    """Elimina todas las transacciones de la base de datos y sus archivos PDF asociados."""
+    try:
+        expenses = db.query(models.Expense).all()
+        
+        # Eliminar archivos PDF
+        deleted_files = 0
+        for expense in expenses:
+            try:
+                pdf_path = Path(expense.pdf_path)
+                if pdf_path.exists():
+                    pdf_path.unlink()
+                    deleted_files += 1
+            except Exception as e:
+                print(f"Error deleting PDF file {expense.pdf_path}: {str(e)}")
+        
+        # Eliminar todas las transacciones
+        count = db.query(models.Expense).delete()
+        db.commit()
+        
+        return {
+            "message": f"Todas las transacciones fueron eliminadas",
+            "transactions_deleted": count,
+            "files_deleted": deleted_files
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar transacciones: {str(e)}")
+
+
+@app.post("/expenses/reprocess-suspicious")
+def reprocess_suspicious_flags(db: Session = Depends(get_db)):
+    """Reprocesa todas las transacciones para actualizar las banderas de sospecha.
+    
+    Usa la lógica completa del detector de forma incremental, procesando las transacciones
+    en orden cronológico y comparando cada una solo con el historial previo.
+    """
+    try:
+        # Obtener todas las transacciones ordenadas por fecha
+        all_expenses = db.query(models.Expense).order_by(models.Expense.date, models.Expense.id).all()
+        
+        if len(all_expenses) < 5:
+            return {
+                "message": "No hay suficientes transacciones para analizar. Se necesitan al menos 5 transacciones.",
+                "total": len(all_expenses),
+                "suspicious_count": 0
+            }
+        
+        suspicious_count = 0
+        sensitivity = "standard"
+        sensitivity_config = suspicious_detector.SENSITIVITY_LEVELS.get(sensitivity, suspicious_detector.SENSITIVITY_LEVELS["standard"])
+        
+        # Importar funciones necesarias del detector
+        from app.services.suspicious_detector import _build_stats, _normalize_vendor, _analyze_date_pattern, _days_since_last_transaction
+        
+        # Procesar transacciones de forma incremental
+        # Cada transacción se compara solo con las anteriores
+        for i, expense in enumerate(all_expenses):
+            # Si es una de las primeras transacciones, no hay historial suficiente
+            if i < 3:
+                expense.is_suspicious = False
+                expense.suspicion_score = None
+                expense.suspicious_reason = None
+                db.add(expense)
+                continue
+            
+            # Obtener solo las transacciones anteriores como historial
+            historical_expenses = all_expenses[:i]
+            
+            # Construir estadísticas del historial
+            stats = _build_stats(historical_expenses)
+            
+            # Si no hay suficiente historial, saltar
+            if stats["global"]["count"] < 3:
+                expense.is_suspicious = False
+                expense.suspicion_score = None
+                expense.suspicious_reason = None
+                db.add(expense)
+                continue
+            
+            # Preparar datos de la transacción actual
+            amount = float(expense.amount or 0)
+            category = expense.category
+            tx_type = expense.transaction_type or "cargo"
+            vendor_key = _normalize_vendor(expense.merchant_normalized or expense.vendor)
+            transaction_date = expense.date
+            merchant_category = expense.merchant_category
+            
+            # Inicializar análisis
+            reasons = []
+            suspicion_score = 0.0
+            vendor_stats = stats["vendors"].get(vendor_key) if vendor_key else None
+            category_stats = stats["categories"].get(category)
+            global_stats = stats["global"]
+            
+            # 1. Análisis de monto por comercio (usando la lógica completa del detector)
+            if vendor_stats and vendor_stats["count"] >= 3:
+                threshold = vendor_stats["mean"] + (sensitivity_config["multiplier"] * vendor_stats["std"])
+                if vendor_stats["std"] == 0:
+                    threshold = vendor_stats["mean"] * (1.5 + sensitivity_config["multiplier"] * 0.2)
+                if amount > threshold:
+                    multiplier = amount / vendor_stats["mean"] if vendor_stats["mean"] > 0 else 0
+                    score_increase = min(0.4, multiplier / 10)
+                    suspicion_score += score_increase
+                    reasons.append(
+                        f"Monto {multiplier:.1f}x mayor al promedio histórico en {expense.vendor or 'este comercio'} "
+                        f"(promedio: {vendor_stats['mean']:.0f}, observado: {amount:.0f})."
+                    )
+                
+                # Detección de cambio de tipo de transacción
+                historic_types = vendor_stats.get("types", {})
+                if (
+                    tx_type == "abono"
+                    and historic_types.get("abono", 0) == 0
+                    and historic_types.get("cargo", 0) >= 3
+                ):
+                    suspicion_score += 0.2
+                    reasons.append("Primer abono en un comercio que previamente solo registraba cargos.")
+            elif (
+                not vendor_stats
+                and global_stats["count"] >= 15
+                and amount > global_stats["p95"]
+            ):
+                suspicion_score += 0.3
+                reasons.append(
+                    f"Comercio nuevo con monto superior al percentil 95 de tu historial ({global_stats['p95']:.0f})."
+                )
+            
+            # 2. Análisis de categoría
+            if (
+                category_stats
+                and category_stats["count"] >= 5
+                and amount > (category_stats["p90"] * 1.4)
+            ):
+                multiplier = amount / category_stats["p90"] if category_stats["p90"] > 0 else 0
+                suspicion_score += min(0.25, multiplier / 15)
+                reasons.append(
+                    f"Monto {multiplier:.1f}x superior al percentil 90 para la categoría '{category}' "
+                    f"(percentil 90: {category_stats['p90']:.0f})."
+                )
+            
+            # 3. Análisis global de monto
+            if (
+                tx_type == "cargo"
+                and global_stats["count"] >= 20
+                and amount > global_stats["mean"] * (2.5 + sensitivity_config["multiplier"] * 0.5)
+            ):
+                multiplier = amount / global_stats["mean"] if global_stats["mean"] > 0 else 0
+                suspicion_score += min(0.3, multiplier / 12)
+                reasons.append(
+                    f"Cargo {multiplier:.1f}x superior a tu gasto promedio histórico ({global_stats['mean']:.0f})."
+                )
+            
+            # 4. Análisis de fecha/horario
+            if transaction_date:
+                date_analysis = _analyze_date_pattern(transaction_date, historical_expenses, stats)
+                if date_analysis["is_unusual"]:
+                    suspicion_score += date_analysis["score"]
+                    reasons.append(date_analysis["reason"])
+            
+            # 5. Análisis de frecuencia de comercio
+            if vendor_key and vendor_key in stats.get("vendor_frequency", {}):
+                freq_stats = stats["vendor_frequency"][vendor_key]
+                days_since_last = _days_since_last_transaction(transaction_date, freq_stats.get("last_date"))
+                if days_since_last > 0 and days_since_last > freq_stats.get("avg_interval", 0) * 3:
+                    suspicion_score += 0.15
+                    reasons.append(
+                        f"Transacción después de {days_since_last} días, cuando el intervalo promedio es de {freq_stats.get('avg_interval', 0):.0f} días."
+                    )
+            
+            # 6. Análisis de categoría de comercio atípica
+            if merchant_category and vendor_key:
+                vendor_categories = stats.get("vendor_categories", {}).get(vendor_key, set())
+                if merchant_category not in vendor_categories and len(vendor_categories) > 0:
+                    suspicion_score += 0.1
+                    reasons.append(
+                        f"Comercio con categoría '{merchant_category}' diferente a sus categorías históricas."
+                    )
+            
+            # Aplicar umbral de sensibilidad
+            suspicion_score = min(1.0, suspicion_score)
+            
+            if suspicion_score >= sensitivity_config["threshold"]:
+                expense.is_suspicious = True
+                expense.suspicion_score = float(suspicion_score)
+                
+                # Generar explicación mejorada con IA si hay razones
+                if reasons:
+                    historical_context = {
+                        "avg_amount": global_stats.get("mean", 0),
+                        "total_transactions": global_stats.get("count", 0),
+                    }
+                    tx_dict = {
+                        "date": transaction_date,
+                        "amount": amount,
+                        "vendor": expense.vendor,
+                        "merchant_normalized": expense.merchant_normalized,
+                        "category": category,
+                        "transaction_type": tx_type,
+                        "charge_archetype": expense.charge_archetype,
+                    }
+                    try:
+                        expense.suspicious_reason = openai_service.generate_suspicious_explanation(
+                            tx_dict, reasons, historical_context
+                        )
+                    except Exception as e:
+                        print(f"Error generando explicación con IA: {str(e)}")
+                        expense.suspicious_reason = " | ".join(reasons)
+                else:
+                    expense.suspicious_reason = "Movimiento marcado como sospechoso por el sistema."
+                suspicious_count += 1
+            else:
+                expense.is_suspicious = False
+                expense.suspicion_score = float(suspicion_score) if suspicion_score > 0 else None
+                expense.suspicious_reason = None
+            
+            db.add(expense)
+        
+        # Guardar todos los cambios
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error al guardar cambios: {str(e)}")
+        
+        return {
+            "message": "Transacciones reprocesadas exitosamente",
+            "total": len(all_expenses),
+            "suspicious_count": suspicious_count
+        }
+    except Exception as e:
+        db.rollback()
+        import traceback
+        print(f"Error completo: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error al reprocesar: {str(e)}")
 
 
 @app.delete("/expenses/{expense_id}")

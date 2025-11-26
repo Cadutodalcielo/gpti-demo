@@ -18,6 +18,7 @@ export default function TransactionsTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -170,7 +171,17 @@ export default function TransactionsTable({
               const isCargo = expense.transaction_type === 'cargo';
               const rowClass = expense.is_suspicious ? "bg-red-50/70" : "";
               return (
-                <tr key={expense.id} className={`hover:bg-gray-50 ${rowClass}`}>
+                <tr 
+                  key={expense.id} 
+                  className={`hover:bg-gray-50 ${rowClass} cursor-pointer`}
+                  onClick={(e) => {
+                    // Solo abrir modal si no se clickeó en los botones de acción
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('button') && !target.closest('a')) {
+                      setSelectedExpense(expense);
+                    }
+                  }}
+                >
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-black">
                     {formatDate(expense.date)}
                   </td>
@@ -327,6 +338,247 @@ export default function TransactionsTable({
             onRefresh();
           }}
         />
+      )}
+
+      {/* Modal de detalle de transacción */}
+      {selectedExpense && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedExpense(null)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-lg border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del modal */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+              <div>
+                <h3 className="text-xl font-semibold text-black">
+                  Detalle de Transacción
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Información completa de la transacción
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedExpense(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Contenido del modal */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* Información básica */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      Fecha
+                    </p>
+                    <p className="text-base font-semibold text-black">
+                      {formatDate(selectedExpense.date)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      Monto
+                    </p>
+                    <p className={`text-2xl font-bold ${
+                      selectedExpense.transaction_type === 'cargo' ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      {formatCurrency(selectedExpense.amount)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tipo y categoría */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Tipo de Transacción
+                    </p>
+                    <span
+                      className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium ${
+                        selectedExpense.transaction_type === 'cargo'
+                          ? "bg-red-100 text-red-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {selectedExpense.transaction_type === 'cargo' ? "CARGO" : "ABONO"}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Categoría
+                    </p>
+                    <span className="inline-block px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {selectedExpense.category}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Comercio */}
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                    Comercio
+                  </p>
+                  <p className="text-base font-semibold text-black">
+                    {selectedExpense.merchant_normalized || selectedExpense.vendor || "No especificado"}
+                  </p>
+                  {selectedExpense.vendor && selectedExpense.merchant_normalized && selectedExpense.vendor !== selectedExpense.merchant_normalized && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Original: {selectedExpense.vendor}
+                    </p>
+                  )}
+                </div>
+
+                {/* Tipo de comercio */}
+                {selectedExpense.merchant_category && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Tipo de Comercio
+                    </p>
+                    <span className="inline-block px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                      {selectedExpense.merchant_category}
+                    </span>
+                  </div>
+                )}
+
+                {/* Análisis de IA */}
+                <div className="border-t border-gray-200 pt-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                    Análisis de IA
+                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-1">
+                        Tipo de Transacción Detectado:
+                      </p>
+                      <p className="text-base text-black">
+                        {selectedExpense.charge_archetype || "No disponible"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-1">
+                        Motivo/Origen:
+                      </p>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {selectedExpense.charge_origin || "La IA no entregó más contexto sobre el origen de esta transacción."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información adicional */}
+                <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Tipo de Gasto
+                    </p>
+                    <p className="text-sm text-black">
+                      {selectedExpense.is_fixed === "fixed" ? "Fijo" : "Variable"}
+                    </p>
+                  </div>
+                  {selectedExpense.channel && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                        Canal
+                      </p>
+                      <p className="text-sm text-black capitalize">
+                        {selectedExpense.channel}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Descripción original */}
+                {selectedExpense.description && (
+                  <div className="border-t border-gray-200 pt-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Descripción Original
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      {selectedExpense.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Alerta sospechosa */}
+                {selectedExpense.is_suspicious && (
+                  <div className="border-t border-red-200 pt-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-red-600 text-xl">⚠️</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-red-700 mb-2">
+                            Movimiento Sospechoso Detectado
+                          </p>
+                          <p className="text-sm text-red-600 leading-relaxed">
+                            {selectedExpense.suspicious_reason || "Esta transacción fue marcada como sospechosa por el sistema de detección de anomalías."}
+                          </p>
+                          {selectedExpense.suspicion_score !== null && selectedExpense.suspicion_score !== undefined && (
+                            <div className="mt-3">
+                              <p className="text-xs text-gray-600 mb-1">
+                                Nivel de sospecha: {(selectedExpense.suspicion_score * 100).toFixed(0)}%
+                              </p>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-red-600 h-2 rounded-full transition-all"
+                                  style={{ width: `${selectedExpense.suspicion_score * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Información del archivo */}
+                <div className="border-t border-gray-200 pt-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                    Información de Origen
+                  </p>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <p>
+                      <span className="font-medium">Archivo PDF:</span> {selectedExpense.pdf_filename}
+                    </p>
+                    {selectedExpense.analysis_method && (
+                      <p>
+                        <span className="font-medium">Método de análisis:</span> {selectedExpense.analysis_method}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer del modal */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-white">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedExpense(null);
+                    setEditingExpense(selectedExpense);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-black hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => setSelectedExpense(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-black hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

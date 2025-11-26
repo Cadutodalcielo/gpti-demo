@@ -19,26 +19,49 @@ SENSITIVITY_LEVELS = {
 DEFAULT_SENSITIVITY = "standard"
 
 
-def annotate_transactions(transactions: List[Dict], db, sensitivity: str = DEFAULT_SENSITIVITY) -> List[Dict]:
+def annotate_transactions(transactions: List[Dict], db, sensitivity: str = DEFAULT_SENSITIVITY, exclude_vendors: Optional[List[str]] = None) -> List[Dict]:
     """Annotate transactions with suspicious flags using historical expenses.
     
     Args:
         transactions: List of transaction dictionaries to analyze
         db: Database session
         sensitivity: Sensitivity level ('conservative', 'standard', 'strict')
+        exclude_vendors: Optional list of vendor names to exclude from history (for current batch)
     """
-    history = db.query(models.Expense).all()
+    # Obtener historial completo
+    all_history = db.query(models.Expense).all()
     sensitivity_config = SENSITIVITY_LEVELS.get(sensitivity, SENSITIVITY_LEVELS[DEFAULT_SENSITIVITY])
     
+    # Inicializar todas las transacciones
     for transaction in transactions:
         transaction.setdefault("is_suspicious", False)
         transaction.setdefault("suspicious_reason", None)
         transaction.setdefault("suspicion_score", 0.0)
 
-    if not history:
+    # Si no hay historial, retornar sin análisis
+    if not all_history:
+        print(f"[SuspiciousDetector] No hay historial disponible. Se procesaron {len(transactions)} transacciones sin análisis.")
         return transactions
 
+    # Filtrar historial para excluir las transacciones del lote actual si se proporcionan
+    # Esto evita que las transacciones se comparen consigo mismas
+    if exclude_vendors:
+        exclude_normalized = {_normalize_vendor(v) for v in exclude_vendors if v}
+        history = [
+            exp for exp in all_history 
+            if _normalize_vendor(exp.merchant_normalized or exp.vendor) not in exclude_normalized
+        ]
+        print(f"[SuspiciousDetector] Historial filtrado: {len(history)} de {len(all_history)} transacciones (excluyendo {len(exclude_vendors)} del lote actual)")
+    else:
+        history = all_history
+    
+    # Si después de filtrar no queda historial suficiente, usar todo el historial
+    if len(history) < 5:
+        history = all_history
+        print(f"[SuspiciousDetector] Usando todo el historial ({len(history)} transacciones) - historial filtrado insuficiente")
+
     stats = _build_stats(history)
+    print(f"[SuspiciousDetector] Analizando {len(transactions)} transacciones con historial de {len(history)} transacciones")
 
     for transaction in transactions:
         amount = float(transaction.get("amount") or 0)
