@@ -10,7 +10,10 @@ interface ChargeTypeSummaryProps {
   expenses: Expense[];
 }
 
-const typeLabels: Record<string, { label: string; description: string; color: string; bgColor: string; barColor: string }> = {
+type ChargeTypeSummaryMap = DashboardStats["charge_type_summary"];
+type ChargeTypeKey = keyof ChargeTypeSummaryMap;
+
+const typeLabels: Record<ChargeTypeKey, { label: string; description: string; color: string; bgColor: string; barColor: string }> = {
   suscripciones: {
     label: "Suscripciones",
     description: "Gastos recurrentes mensuales",
@@ -42,7 +45,7 @@ const typeLabels: Record<string, { label: string; description: string; color: st
 };
 
 export default function ChargeTypeSummary({ stats, expenses }: ChargeTypeSummaryProps) {
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<ChargeTypeKey | null>(null);
   const summary = stats.charge_type_summary;
   const totalCharges = stats.total_charges;
 
@@ -50,14 +53,16 @@ export default function ChargeTypeSummary({ stats, expenses }: ChargeTypeSummary
     return null;
   }
 
-  const types = Object.entries(summary).filter(([_, data]) => data.count > 0);
+  const types = (Object.entries(summary) as Array<[ChargeTypeKey, ChargeTypeSummaryMap[ChargeTypeKey]]>).filter(
+    ([_, data]) => data.count > 0
+  );
 
   if (types.length === 0) {
     return null;
   }
 
   // Función para filtrar transacciones por tipo de cargo
-  const getFilteredExpenses = (typeKey: string): Expense[] => {
+  const getFilteredExpenses = (typeKey: ChargeTypeKey): Expense[] => {
     const filtered: Expense[] = [];
     
     for (const expense of expenses) {
@@ -103,7 +108,7 @@ export default function ChargeTypeSummary({ stats, expenses }: ChargeTypeSummary
     });
   };
 
-  const handleCardClick = (typeKey: string) => {
+  const handleCardClick = (typeKey: ChargeTypeKey) => {
     setSelectedType(typeKey);
   };
 
@@ -292,4 +297,3 @@ export default function ChargeTypeSummary({ stats, expenses }: ChargeTypeSummary
     </div>
   );
 }
-
